@@ -1,0 +1,85 @@
+##################
+### USER INPUT ###
+##################
+# User input will be different for each transaction.
+
+## RAW DATA ##
+# The calldata to be executed by the safe.
+# To get the raw_data of the transactions, there are two options:
+# 1. Use a Foundry script with the SafeTransactionBuilder module from the transaction-builer.
+#    The script will safe the raw calldata under transaction_builder/script/output.txt.
+#    Copy the raw data as a string, keep the 0x at the start (eg. RAW_DATA = "0x00000000001cb00036cbd53842c").
+# 2. Use the Transaction builder from Safe (https://app.safe.global/) to build the transaction.
+#    Do NOT sign via the Safe UI.
+#    Copy the Raw Data (under Transaction details) as a string, keep the 0x at the start (eg. RAW_DATA = "0x00000000001cb00036cbd53842c").
+
+raw_data="0x8d80ff0a0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000013200bf5bec5a2711719b5a2c344d17fbc276726ab1b100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044095ea7b30000000000000000000000000000000000000000000000000000000000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00bf5bec5a2711719b5a2c344d17fbc276726ab1b100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044095ea7b30000000000000000000000000000000000000000000000000000000000000002ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000000000000000"
+
+##################
+### PARAMETERS ### 
+##################
+# Parameters should not be changed for most transactions.
+
+## GNOSIS SAFES ##
+# For all the safes, add a dict to the safes list with the following information:
+# * name: The name of the safe (human readable).
+# * address: The contract address.
+
+safes = [
+    {name = "Test", address = "0x1d2283161912aBC8dd9488037bCAcc42021d57D2"},
+]
+
+## SIGNERS ##
+# For all the signers, add a dict to the signers list with the following information:
+# * name: The name of the signer (human readable).
+# * address: The public address.
+# * wallet: The wallet type used to sign, only signers with Trezor T ("T") or Trezor 1 ("1") or Ledger Nano S ("L") or a Hot Wallet ("HOT") are supported for now.
+# * index: Only for Hardware wallets, the corresponding BIP32 index of the address (eg. 0 for your first ethereum address, 4 for the 5th ethereum address...).
+# * key_name: Only for Hot wallets, the name of the private key in the .env file.
+
+signers = [
+    {name = "Test Hot Wallet", address = "0x3F87E0517e573bB127C8a23d0171D7720967EA55", wallet = "HOT", key_name="KEY_SIGNER"},
+    {name = "Test Trezor T", address = "0x2e0C54d38b4C61b5E82Ff61d36afc005984da5e1", wallet = "T", index = 0},
+]
+
+## RELAYERS ##
+# For all the relayers, add a dict to the relayers list with the following information:
+# * name: The name of the signer (human readable).
+# * address: The public address.
+# * wallet: The wallet type used to relay the tx, only relayers with Trezor T ("T") or a Hot Wallet ("HOT") are supported for now.
+# * index: Only for Hardware wallets, the corresponding BIP32 index of the address used to sign (eg. 0 for your first ethereum address, 4 for the 5th ethereum address...).
+# * key_name: Only for Hot wallets, the name of the private key in the .env file.
+
+relayers = [
+    {name = "Test Hot Wallet", address = "0x3F87E0517e573bB127C8a23d0171D7720967EA55", wallet = "HOT", key_name="KEY_RELAYER"},
+    {name = "Test Trezor T", address = "0x2e0C54d38b4C61b5E82Ff61d36afc005984da5e1", wallet = "T", index = 0},
+]
+
+## OPERATION ##
+# For a single call, use "operation" = 0 (call).
+# For a multicall, use "operation" = 1 (delegatecall).
+
+operation = 1
+
+## TO ##
+# For a single call, use "to" = the contract/EOA being called.
+# For a multicall, use "to" = "0xA1dabEF33b3B82c7814B6D82A79e50F4AC44102B" (the Multicall contract, same on all chains).
+
+to = "0xA1dabEF33b3B82c7814B6D82A79e50F4AC44102B"
+
+## GAS ##
+# Maximum gas usage of the transaction.
+# If gas is set to zero, we will call 'w3.eth.estimate_gas()' to dynamically estimate gas usage.
+
+gas = 0
+
+## MAX FEE PER GAS ##
+# Maximum fee per gas.
+# If max_fee_per_gas is set to zero, we will call 'w3.eth.gas_price()' to dynamically estimate the gas price,
+# and use gas_price + max_priority_fee_per_gas as max_fee_per_gas.
+
+max_fee_per_gas = 0
+
+## MAX PRIORITY FEE PER GAS ##
+
+max_priority_fee_per_gas = 1000000
