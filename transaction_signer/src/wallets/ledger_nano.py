@@ -47,6 +47,8 @@ def sign_typed_data_hash(
 
     # Sign the hashed message.
     try:
+        print(f"Domain Hash is: {domain_hash.hex()}")
+        print(f"Message Hash is: {message_hash.hex()}")
         signature = _sign_typed_data_hash(
             dongle, dongle_path, domain_hash, message_hash
         )
