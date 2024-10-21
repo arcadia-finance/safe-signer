@@ -4,7 +4,14 @@ import requests
 from web3 import Web3
 
 
-def simulate(safe, to, raw_data, operation, constants, tenderly_url):
+def simulate(
+    safe: any,
+    to: str,
+    raw_data: str,
+    operation: int,
+    constants: dict,
+    tenderly_url: str,
+):
     # Set signature Threshold of safe to 1.
     storage_slot_threshold = "0x" + Web3.to_bytes(4).rjust(32, b"\0").hex()
     new_threshold = "0x" + Web3.to_bytes(1).rjust(32, b"\0").hex()

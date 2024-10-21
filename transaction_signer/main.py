@@ -1,16 +1,14 @@
 import inquirer
 import json
 import os
-import requests
 import toml
 
-import utils.eip712 as eip712
-import utils.tenderly as tenderly
-import utils.validate_user_input as validate_user_input
-import wallets.hot_wallet as hot_wallet
-import wallets.ledger_nano as ledger_nano
-import wallets.trezor_1 as trezor_1
-import wallets.trezor_t as trezor_t
+import src.eip712_typed_data as eip712_typed_data
+import src.safe_transaction as safe_transaction
+import src.tenderly as tenderly
+import src.user_input as user_input
+import src.utils.validate_config as validate_config
+import src.utils.validate_signer as validate_signer
 
 from dotenv import load_dotenv, find_dotenv
 from eth_utils import keccak
@@ -19,7 +17,7 @@ from pathlib import Path
 from web3 import Web3
 
 
-def get_user_action():
+def get_user_action() -> bool:
     choices = [
         "Sign Message",
         "Simulate on Tenderly",
@@ -37,135 +35,77 @@ def get_user_action():
     ]
     action = inquirer.prompt(questions)["actions"]
 
-    if action == "Sign Message":
-        get_signer()
-
-    elif action == "Simulate on Tenderly":
-        simulate_tx_on_tenderly()
-
-    elif action == "Create unsigned Safe tx":
-        generate_unsigned_safe_tx()
-
-    elif action == "Create signed Safe tx":
-        sign_safe_tx()
-
-    elif action == "Broadcast signed Safe tx":
-        sign_and_broadcast_safe_tx()
-
-
-def get_signer():
-    # Get signers from input file
-    choices = [f"{signer['name']} ({signer['address']})" for signer in signers]
-    choices.append("Back")
-
-    questions = [
-        inquirer.List(
-            "signers",
-            message="Who is signing?",
-            choices=choices,
-        ),
-    ]
-    answer = inquirer.prompt(questions)["signers"]
-
-    if answer != "Back":
-        # Get signer information
-        signer_address = answer.split("(")[1].split(")")[0]
-        for i in signers:
-            if signer_address == i["address"]:
-                signer = i
-                break
-
-        if safe.functions.isOwner(signer_address).call():
-            # Check if signer already has a signature for the given message hash.
-            if all_signatures.get(transaction_hash, {}).get(signer_address, "") != "":
-                # If yes, user must confirm to sign again.
-                questions = [
-                    inquirer.List(
-                        "overwrite signature",
-                        message="Signature for signer already exists, overwrite it?",
-                        choices=["Yes", "No"],
-                    ),
-                ]
-                answer = inquirer.prompt(questions)["overwrite signature"]
-                if answer == "Yes":
-                    sign_message(signer)
-            else:
-                sign_message(signer)
-
-        else:
-            print(
-                f'Signer {signer["name"]} ({signer["address"]}) is not an owner of the safe {safe_address}.'
-            )
-
-    get_user_action()
-
-
-def sign_message(signer: dict):
-    if signer["wallet"] == "HOT":
-        key_signer = os.getenv(signer["key_name"])
-        if not key_signer:
-            print(f"Private key for signer {signer['name']} not found in .env file.")
-            return None
-        signature = hot_wallet.sign_typed_data(
-            key_signer, signer["address"], w3, typed_data
-        )
+    if action == "Quit":
+        # Stop script.
+        return False
 
     else:
-        input(
-            f'Signer {signer["name"]} ({signer["address"]}), please connect your Device and sign the data with wallet at index {signer["index"]}.\nPress Enter to continue...'
-        )
-        # Sign Message.
-        if signer["wallet"] == "T":
-            signature = trezor_t.sign_typed_data(
-                signer["index"], signer["address"], typed_data
-            )
-        elif signer["wallet"] == "1":
-            signature = trezor_1.sign_typed_data_hash(
-                signer["index"],
-                signer["address"],
-                domain_hash,
-                message_hash,
-            )
-        elif signer["wallet"] == "L":
-            signature = ledger_nano.sign_typed_data_hash(
-                signer["index"],
-                signer["address"],
-                domain_hash,
-                message_hash,
-            )
-        else:
-            raise Exception("Unknown wallet type.")
+        if action == "Sign Message":
+            sign_typed_data()
 
-    if signature != None:
-        print(f"Signature: {signature}")
+        elif action == "Simulate on Tenderly":
+            simulate_on_tenderly()
 
-        # Save the signature in the output file.
-        if not all_signatures.get(transaction_hash, False):
-            all_signatures[transaction_hash] = {}
-        all_signatures[transaction_hash].update({signer["address"]: signature})
+        elif action == "Create unsigned Safe tx":
+            get_unsigned_safe_tx()
 
-        # Update existing signatures and signers.
-        current_signers = list(all_signatures.get(transaction_hash, {}).keys())
-        print(
-            f"{len(current_signers)}/{required_signatures} signatures are collected, from {current_signers}"
-        )
+        elif action == "Create signed Safe tx":
+            get_signed_safe_tx()
 
-        with open(os.path.join(path, "signatures.txt"), "w") as f:
-            json.dump(all_signatures, f)
+        elif action == "Broadcast signed Safe tx":
+            success = sign_and_broadcast_safe_tx()
+            # If tx was send out, stop script.
+            if success:
+                return False
+
+        return True
 
 
-def simulate_tx_on_tenderly():
+def sign_typed_data():
+    signer = user_input.get_signer(signers)
+    # Only continue if signer was selected.
+    if not signer:
+        return
+
+    # Only continue if signer is valid.
+    if not validate_signer.validate(safe, all_signatures, transaction_hash, signer):
+        return
+
+    signature = eip712_typed_data.sign(
+        w3, signer, typed_data, domain_hash, message_hash
+    )
+
+    # Only continue if signature is valid.
+    if not signature:
+        return
+
+    # Save the signature in the output file.
+    if not all_signatures.get(transaction_hash, False):
+        all_signatures[transaction_hash] = {}
+    all_signatures[transaction_hash].update({signer["address"]: signature})
+
+    # Update existing signatures and signers.
+    current_signers = list(all_signatures.get(transaction_hash, {}).keys())
+    print(f"Signature: {signature}")
+    print(
+        f"{len(current_signers)}/{required_signatures} signatures are collected, from {current_signers}"
+    )
+
+    with open(os.path.join(path, "out/signatures.txt"), "w") as f:
+        json.dump(all_signatures, f)
+
+
+def simulate_on_tenderly():
     tenderly.simulate(safe, to, raw_data, operation, constants, TENDERLY_URL)
-    get_user_action()
 
 
-def generate_unsigned_safe_tx():
-    relayer = get_relayer()
-    print(_generate_unsigned_safe_tx(relayer["address"]))
-    get_user_action()
+def get_unsigned_safe_tx():
+    relayer = user_input.get_relayer(relayers)
+    if relayer:
+        print(_get_unsigned_safe_tx(relayer))
 
 
-def _generate_unsigned_safe_tx(relayer: str) -> dict:
+def _get_unsigned_safe_tx(relayer) -> dict | bool:
     signers_to_signatures = all_signatures.get(transaction_hash, {})
 
     # Sort the signatures in ascending order according to public addresses.
@@ -179,220 +119,149 @@ def _generate_unsigned_safe_tx(relayer: str) -> dict:
             signatures += signature
 
         # Create the unsigned transaction:
-        unsigned_safe_tx = safe.functions.execTransaction(
+        unsigned_safe_tx = safe_transaction.create(
+            w3,
+            safe,
             to,
-            constants["VALUE_SAFE_TX"],
-            Web3.to_bytes(hexstr=raw_data),
+            constants,
+            raw_data,
             operation,
-            constants["SAFE_TX_GAS"],
-            constants["BASE_GAS"],
-            constants["GAS_PRICE"],
-            constants["GAS_TOKEN"],
-            constants["REFUND_RECEIVER"],
-            Web3.to_bytes(hexstr=signatures),
-        ).build_transaction(
-            {
-                "nonce": w3.eth.get_transaction_count(relayer),
-                "value": constants["VALUE_RELAY_TX"],
-                "type": constants["TYPE"],
-                "chainId": safe.functions.getChainId().call(),
-                "gas": 0,
-            }
+            signatures,
+            relayer["address"],
+            gas,
+            max_fee_per_gas,
+            max_priority_fee_per_gas,
         )
-
-        # Use dynamic gas usage if 'gas' is set to 0 by the user.
-        if gas == 0:
-            unsigned_safe_tx.update({"gas": int(w3.eth.estimate_gas(unsigned_safe_tx))})
-        else:
-            unsigned_safe_tx.update({"gas": gas})
-
-        # Use dynamic gas_price if 'max_fee_per_gas' is set to 0 by the user.
-        if max_fee_per_gas == 0:
-            unsigned_safe_tx.update(
-                {"maxFeePerGas": int(w3.eth.gas_price + max_priority_fee_per_gas)}
-            )
-        else:
-            unsigned_safe_tx.update({"maxFeePerGas": max_fee_per_gas})
-        unsigned_safe_tx.update({"maxPriorityFeePerGas": max_priority_fee_per_gas})
 
         return unsigned_safe_tx
 
     else:
-        input(
-            f"Only {len(signers_and_signatures)} out of the {required_signatures} required signatures are collected.\nPress Enter to go back..."
+        print(
+            f"Only {len(signers_and_signatures)} out of the {required_signatures} required signatures are collected."
         )
-        return None
+        # Return False if not successful.
+        return False
 
 
-def sign_safe_tx():
-    print(_sign_safe_tx())
-    get_user_action()
+def get_signed_safe_tx():
+    relayer = user_input.get_relayer(relayers)
+    if relayer:
+        print(_get_signed_safe_tx(relayer))
 
 
-def _sign_safe_tx() -> dict:
-    relayer = get_relayer()
-    unsigned_safe_tx = _generate_unsigned_safe_tx(relayer["address"])
+def _get_signed_safe_tx(relayer) -> dict | bool:
+    unsigned_safe_tx = _get_unsigned_safe_tx(relayer)
+    if not unsigned_safe_tx:
+        # Return False if not successful.
+        return False
 
-    if unsigned_safe_tx == None:
-        return None
-
-    if relayer["wallet"] == "HOT":
-        key_relayer = os.getenv(relayer["key_name"])
-        if not key_relayer:
-            print(f"Private key for relayer {relayer['name']} not found in .env file.")
-            return None
-        signed_tx = hot_wallet.sign_transaction(
-            key_relayer, relayer["address"], w3, unsigned_safe_tx
-        )
-    else:
-        input(
-            f'Relayer {relayer["name"]} ({relayer["address"]}), please connect your Device and sign the transaction with wallet at index {relayer["index"]}.\nPress Enter to continue...'
-        )
-        # Sign Message.
-        if relayer["wallet"] == "T":
-            signed_tx = trezor_t.sign_transaction(
-                relayer["index"], relayer["address"], unsigned_safe_tx
-            )
-        else:
-            raise Exception("Unknown or unsupported wallet type.")
+    signed_tx = safe_transaction.sign(w3, unsigned_safe_tx, relayer)
 
     return signed_tx
 
 
-def get_relayer():
-    # Get relayers from input file
-    choices = [f"{relayer['name']} ({relayer['address']})" for relayer in relayers]
-    choices.append("Back")
+def sign_and_broadcast_safe_tx() -> bool:
+    relayer = user_input.get_relayer(relayers)
+    if relayer:
+        signed_tx = _get_signed_safe_tx(relayer)
 
-    questions = [
-        inquirer.List(
-            "relayers",
-            message="Who is the relayer?",
-            choices=choices,
-        ),
-    ]
-    answer = inquirer.prompt(questions)["relayers"]
+        if signed_tx:
+            choices = [
+                "I Confirm",
+                "Quit",
+            ]
+            questions = [
+                inquirer.List(
+                    "actions",
+                    message="Confirm you want to broadcast the signed transaction",
+                    choices=choices,
+                ),
+            ]
+            action = inquirer.prompt(questions)["actions"]
 
-    if answer != "Back":
-        # Get relayer information
-        relayer_address = answer.split("(")[1].split(")")[0]
-        for i in relayers:
-            if relayer_address == i["address"]:
-                relayer = i
-                break
-        return relayer
-    else:
-        get_user_action()
+            if action == "I Confirm":
+                w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+                tx_hash = f"0x{keccak(signed_tx.raw_transaction).hex()}"
+                print(f"Transaction sent: {tx_hash}")
+                # Return True if successful.
+                return True
+    # Return False if not successful.
+    return False
 
-
-def sign_and_broadcast_safe_tx():
-    signed_tx = _sign_safe_tx()
-
-    if signed_tx != None:
-        choices = [
-            "I Confirm",
-            "Quit",
-        ]
-        questions = [
-            inquirer.List(
-                "actions",
-                message="Confirm you want to broadcast the signed transaction",
-                choices=choices,
-            ),
-        ]
-        action = inquirer.prompt(questions)["actions"]
-
-        if action == "I Confirm":
-            w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-            print(
-                f"Transaction sent -- tx_hash: 0x{keccak(signed_tx.raw_transaction).hex()}"
-            )
-
-    get_user_action()
-
-
-### User input ###
-path = Path(__file__).parent.resolve()
-config_data = toml.load(os.path.join(path, "config_transaction_signer.toml"))
-
-### Parameters ###
-safes = config_data["safes"]
-raw_data = config_data["raw_data"]
-operation = config_data["operation"]
-to = config_data["to"]
-signers = config_data["signers"]
-relayers = config_data["relayers"]
-
-gas = config_data["gas"]
-max_fee_per_gas = config_data["max_fee_per_gas"]
-max_priority_fee_per_gas = config_data["max_priority_fee_per_gas"]
-
-validate_user_input.validate(safes, signers, relayers, operation, to)
-
-### Constants ###
-constants = toml.load(os.path.join(path, "constants.toml"))
-
-### Secrets ###
-load_dotenv(find_dotenv())
-
-### Web3 ###
-# Rpc provider.
-HTTP_PROVIDER = os.getenv("HTTP_PROVIDER")
-w3 = Web3(Web3.HTTPProvider(HTTP_PROVIDER))
-
-### Tenderly ###
-TENDERLY_URL = f"https://api.tenderly.co/api/v1/account/{os.getenv('TENDERLY_ACCOUNT')}/project/{os.getenv('TENDERLY_PROJECT')}"
-
-# Gnosis safe.
-choices = [f"{safe['name']} ({safe['address']})" for safe in safes]
-questions = [
-    inquirer.List(
-        "safes",
-        message="For which Safe do you want to execute a transaction?",
-        choices=choices,
-    ),
-]
-answer = inquirer.prompt(questions)["safes"]
-
-safe_address = answer.split("(")[1].split(")")[0]
-for i in signers:
-    if safe_address == i["address"]:
-        signer = i
-        break
-
-with open(os.path.join(path, "abis", "safe.json")) as f:
-    SAFE_ABI = json.loads(f.read())
-safe = w3.eth.contract(address=safe_address, abi=SAFE_ABI)
-
-##### Run the script #####
-# Required number of signatures.
-required_signatures = safe.functions.getThreshold().call()
-
-# Generate the message that must be signed by the multisig users:
-typed_data = eip712.get_typed_data(safe, to, raw_data, operation, constants)
-
-# Calculate the Transaction Hash.
-domain_hash = safe.functions.domainSeparator().call()
-message_hash = eip712.get_typed_data_hash(typed_data)
-
-msg_to_sign = Web3.to_bytes(hexstr=constants["SIGN_MAGIC"]) + domain_hash + message_hash
-transaction_hash = keccak(msg_to_sign).hex()
-print(f"Domain Hash is: {domain_hash.hex()}")
-print(f"Message Hash is: {message_hash.hex()}")
-print(f"Transaction Hash is: {transaction_hash}")
-
-# Fetch the list of existing signatures, if it exists.
-try:
-    with open(os.path.join(path, "signatures.txt")) as f:
-        all_signatures = json.load(f)
-except JSONDecodeError:
-    all_signatures = {}
-
-# Get existing signatures for the Transaction Hash.
-current_signers = list(all_signatures.get(transaction_hash, {}).keys())
-print(
-    f"{len(current_signers)}/{required_signatures} signatures are collected, from {current_signers}"
-)
 
 if __name__ == "__main__":
-    get_user_action()
+    ##### Set Up #####
+
+    ### User input ###
+    path = Path(__file__).parent.resolve()
+    config_data = toml.load(os.path.join(path, "config_transaction_signer.toml"))
+
+    safes = config_data["safes"]
+    raw_data = config_data["raw_data"]
+    operation = config_data["operation"]
+    to = config_data["to"]
+    signers = config_data["signers"]
+    relayers = config_data["relayers"]
+    gas = config_data["gas"]
+    max_fee_per_gas = config_data["max_fee_per_gas"]
+    max_priority_fee_per_gas = config_data["max_priority_fee_per_gas"]
+
+    validate_config.validate(safes, signers, relayers, operation, to)
+
+    ### Constants ###
+    constants = toml.load(os.path.join(path, "data/constants.toml"))
+
+    ### Secrets ###
+    load_dotenv(find_dotenv())
+
+    ### Web3 ###
+    # Rpc provider.
+    w3 = Web3(Web3.HTTPProvider(os.getenv("HTTP_PROVIDER")))
+
+    ### Tenderly ###
+    TENDERLY_URL = f"https://api.tenderly.co/api/v1/account/{os.getenv('TENDERLY_ACCOUNT')}/project/{os.getenv('TENDERLY_PROJECT')}"
+
+    ### Gnosis safe ###
+    # Select the Safe.
+    safe = user_input.get_safe(safes)
+    with open(os.path.join(path, "data/abis", "safe.json")) as f:
+        SAFE_ABI = json.loads(f.read())
+    safe = w3.eth.contract(address=safe["address"], abi=SAFE_ABI)
+
+    # Required number of signatures.
+    required_signatures = safe.functions.getThreshold().call()
+
+    ### Transaction ###
+    # Generate the message that must be signed by the multisig users:
+    typed_data = eip712_typed_data.get_typed_data(
+        safe, to, raw_data, operation, constants
+    )
+
+    # Calculate the Transaction Hash.
+    domain_hash = safe.functions.domainSeparator().call()
+    message_hash = eip712_typed_data.get_typed_data_hash(typed_data)
+
+    msg_to_sign = (
+        Web3.to_bytes(hexstr=constants["SIGN_MAGIC"]) + domain_hash + message_hash
+    )
+    transaction_hash = keccak(msg_to_sign).hex()
+    print(f"Domain Hash is: {domain_hash.hex()}")
+    print(f"Message Hash is: {message_hash.hex()}")
+    print(f"Transaction Hash is: {transaction_hash}")
+
+    # Fetch the list of existing signatures, if it exists.
+    try:
+        with open(os.path.join(path, "out/signatures.txt")) as f:
+            all_signatures = json.load(f)
+    except JSONDecodeError:
+        all_signatures = {}
+
+    # Get existing signatures for the Transaction Hash.
+    current_signers = list(all_signatures.get(transaction_hash, {}).keys())
+    print(
+        f"{len(current_signers)}/{required_signatures} signatures are collected, from {current_signers}"
+    )
+
+    ##### Run the script #####
+    while get_user_action():
+        pass

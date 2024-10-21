@@ -58,6 +58,14 @@ def sign_typed_data(signer_index: int, signer_address: str, data: dict) -> str:
 def sign_transaction(
     signer_index: int, signer_address: str, unsigned_safe_tx: dict
 ) -> str:
+    """
+    Sign an Ethereum transaction using a Trezor Model T device.
+
+    :param signer_index: The index of the BIP32 path of the Ethereum address used for signing.
+    :param signer_address: The public address of the signer.
+    :param unsigned_safe_tx: The unsigned transaction to sign.
+    :return: the signed transaction.
+    """
     # Parse BIP32 path.
     path = get_path(signer_index)
     bip32_path = parse_path(path)

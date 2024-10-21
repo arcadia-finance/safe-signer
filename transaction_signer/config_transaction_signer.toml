@@ -26,7 +26,8 @@ raw_data="0x8d80ff0a000000000000000000000000000000000000000000000000000000000000
 # * address: The contract address.
 
 safes = [
-    {name = "Test", address = "0x1d2283161912aBC8dd9488037bCAcc42021d57D2"},
+    {name = "Test Safe 1/2", address = "0x1d2283161912aBC8dd9488037bCAcc42021d57D2"},
+    {name = "Test Safe 2/2", address = "0x48aa867Bf61A4B1d850Db76014AA34E4dA8F3367"},
 ]
 
 ## SIGNERS ##

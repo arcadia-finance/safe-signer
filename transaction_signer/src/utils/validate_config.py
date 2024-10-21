@@ -1,4 +1,4 @@
-def validate(safes, signers, relayers, operation, to):
+def validate(safes: dict, signers: dict, relayers: dict, operation: int, to: str):
     # Safe Name can't contain certain characters.
     for safe in safes:
         name = safe["name"]

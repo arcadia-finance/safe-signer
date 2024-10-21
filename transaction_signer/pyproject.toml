@@ -7,17 +7,17 @@ readme = "../README.md"
 
 [tool.poetry.dependencies]
 python = "3.10.6"
-inquirer = "3.3.0"
+inquirer = "3.4.0"
 toml = "0.10.2"
-eth-abi = "2.2.0"
-eth-keys = "0.4.0"
+eth-abi = "5.1.0"
+eth-keys = "0.5.1"
 python-dotenv = "1.0.1"
 ledgerblue = "0.1.54"
 trezor = "0.13.9"
-web3 = "5.31.3"
-pip = "24.1.2"
+web3 = "7.4.0"
+pip = "24.2"
 ipykernel = "6.29.5"
-ruff = "0.5.2"
+ruff = "0.5.7"
 
 
 [build-system]

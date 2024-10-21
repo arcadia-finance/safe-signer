@@ -1,3 +1,10 @@
+import os
+
+import src.wallets.hot_wallet as hot_wallet
+import src.wallets.ledger_nano as ledger_nano
+import src.wallets.trezor_1 as trezor_1
+import src.wallets.trezor_t as trezor_t
+
 from eth_abi import encode
 from eth_utils import keccak
 from web3 import Web3
@@ -79,3 +86,45 @@ def get_typed_data_hash(data: dict) -> bytes:
             ],
         )
     )
+
+
+def sign(
+    w3: any, signer: dict, typed_data: dict, domain_hash: bytes, message_hash: bytes
+) -> str | bool:
+    if signer["wallet"] == "HOT":
+        key_signer = os.getenv(signer["key_name"])
+        if not key_signer:
+            print(f"Private key for signer {signer['name']} not found in .env file.")
+            # Return False if not successful.
+            return False
+        signature = hot_wallet.sign_typed_data(
+            key_signer, signer["address"], w3, typed_data
+        )
+
+    else:
+        input(
+            f'Signer {signer["name"]} ({signer["address"]}), please connect your Device and sign the data with wallet at index {signer["index"]}.\nPress Enter to continue...'
+        )
+        # Sign Message.
+        if signer["wallet"] == "T":
+            signature = trezor_t.sign_typed_data(
+                signer["index"], signer["address"], typed_data
+            )
+        elif signer["wallet"] == "1":
+            signature = trezor_1.sign_typed_data_hash(
+                signer["index"],
+                signer["address"],
+                domain_hash,
+                message_hash,
+            )
+        elif signer["wallet"] == "L":
+            signature = ledger_nano.sign_typed_data_hash(
+                signer["index"],
+                signer["address"],
+                domain_hash,
+                message_hash,
+            )
+        else:
+            raise Exception("Unknown wallet type.")
+
+    return signature
