@@ -130,7 +130,6 @@ def sign_transaction(
                 "v": v,
             }
         )
-        print(signed_tx)
         return signed_tx
     except Exception as e:
         client.close()
