@@ -1,6 +1,7 @@
 import os
 
 import src.wallets.hot_wallet as hot_wallet
+import src.wallets.trezor_1 as trezor_1
 import src.wallets.trezor_t as trezor_t
 
 from eth_utils import to_bytes
@@ -14,7 +15,7 @@ def create(
     raw_data: str,
     operation: int,
     signatures: str,
-    relayer: dict,
+    relayer: str,
     gas: int,
     max_fee_per_gas: int,
     max_priority_fee_per_gas: int,
@@ -34,9 +35,7 @@ def create(
         {
             "nonce": w3.eth.get_transaction_count(relayer),
             "value": constants["VALUE_RELAY_TX"],
-            "type": constants["TYPE"],
             "chainId": safe.functions.getChainId().call(),
-            "gas": 0,
         }
     )
 
@@ -74,6 +73,10 @@ def sign(w3: any, unsigned_safe_tx: dict, relayer: dict) -> dict:
         )
         if relayer["wallet"] == "T":
             signed_tx = trezor_t.sign_transaction(
+                relayer["index"], relayer["address"], unsigned_safe_tx
+            )
+        elif relayer["wallet"] == "1":
+            signed_tx = trezor_1.sign_transaction(
                 relayer["index"], relayer["address"], unsigned_safe_tx
             )
         else:

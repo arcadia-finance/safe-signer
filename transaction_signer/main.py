@@ -173,7 +173,7 @@ def sign_and_broadcast_safe_tx() -> bool:
             questions = [
                 inquirer.List(
                     "actions",
-                    message="Confirm you want to broadcast the signed transaction",
+                    message=f"Confirm you want to broadcast the signed transaction (Chain Id: {w3.eth.chain_id})",
                     choices=choices,
                 ),
             ]
