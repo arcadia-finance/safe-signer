@@ -47,7 +47,7 @@ signers = [
 # For all the relayers, add a dict to the relayers list with the following information:
 # * name: The name of the signer (human readable).
 # * address: The public address.
-# * wallet: The wallet type used to relay the tx, only relayers with Trezor T ("T") or a Hot Wallet ("HOT") are supported for now.
+# * wallet: The wallet type used to relay the tx, only relayers with Trezor T ("T") or Trezor 1 ("1") or a Hot Wallet ("HOT") are supported for now.
 # * index: Only for Hardware wallets, the corresponding BIP32 index of the address used to sign (eg. 0 for your first ethereum address, 4 for the 5th ethereum address...).
 # * key_name: Only for Hot wallets, the name of the private key in the .env file.
 
