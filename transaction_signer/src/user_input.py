@@ -1,6 +1,27 @@
 import inquirer
 
 
+def get_chain(chains: list) -> dict:
+    # Get safes from input file
+    choices = [f"{chain['name']} (Chain Id: {chain['chain_id']})" for chain in chains]
+    questions = [
+        inquirer.List(
+            "chains",
+            message="On which Chain do you want to execute a transaction?",
+            choices=choices,
+        ),
+    ]
+    answer = inquirer.prompt(questions)["chains"]
+
+    # Get chain information
+    chain_id = int(answer.split("(Chain Id: ")[1].split(")")[0])
+    for i in chains:
+        if chain_id == i["chain_id"]:
+            chain = i
+            break
+    return chain
+
+
 def get_safe(safes: list) -> dict:
     # Get safes from input file
     choices = [f"{safe['name']} ({safe['address']})" for safe in safes]

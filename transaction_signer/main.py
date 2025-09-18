@@ -196,6 +196,7 @@ if __name__ == "__main__":
     path = Path(__file__).parent.resolve()
     config_data = toml.load(os.path.join(path, "config_transaction_signer.toml"))
 
+    chains = config_data["chains"]
     safes = config_data["safes"]
     raw_data = config_data["raw_data"]
     operation = config_data["operation"]
@@ -215,8 +216,12 @@ if __name__ == "__main__":
     load_dotenv(find_dotenv())
 
     ### Web3 ###
+    # Select the Chain.
+    chain = user_input.get_chain(chains)
     # Rpc provider.
-    w3 = Web3(Web3.HTTPProvider(os.getenv("HTTP_PROVIDER")))
+    w3 = Web3(Web3.HTTPProvider(os.getenv(chain["rpc_name"])))
+    if w3.eth.chain_id != chain["chain_id"]:
+        raise Exception(f"Chain Id is {w3.eth.chain_id}, expected {chain['chain_id']}")
 
     ### Tenderly ###
     TENDERLY_URL = f"https://api.tenderly.co/api/v1/account/{os.getenv('TENDERLY_ACCOUNT')}/project/{os.getenv('TENDERLY_PROJECT')}"
