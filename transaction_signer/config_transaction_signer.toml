@@ -6,7 +6,7 @@
 ## RAW DATA ##
 # The calldata to be executed by the safe.
 # To get the raw_data of the transactions, there are two options:
-# 1. Use a Foundry script with the SafeTransactionBuilder module from the transaction-builer.
+# 1. Use a Foundry script with the SafeTransactionBuilder module from the transaction-builder.
 #    The script will safe the raw calldata under transaction_builder/script/output.txt.
 #    Copy the raw data as a string, keep the 0x at the start (eg. RAW_DATA = "0x00000000001cb00036cbd53842c").
 # 2. Use the Transaction builder from Safe (https://app.safe.global/) to build the transaction.
@@ -19,6 +19,17 @@ raw_data="0x8d80ff0a000000000000000000000000000000000000000000000000000000000000
 ### PARAMETERS ### 
 ##################
 # Parameters should not be changed for most transactions.
+
+## CHAINS ##
+# For all the chains, add a dict to the chains list with the following information:
+# * name: The name of the chain (human readable).
+# * chain_id: The chain id.
+# * rpc_name: The name of the rpc url in the .env file.
+
+chains = [
+    {name = "Test", chain_id = 999999, rpc_name = "RPC_TEST"},
+    {name = "Base Sepolia", chain_id = 84532, rpc_name = "RPC_BASE_SEPOLIA"},
+]
 
 ## GNOSIS SAFES ##
 # For all the safes, add a dict to the safes list with the following information:
