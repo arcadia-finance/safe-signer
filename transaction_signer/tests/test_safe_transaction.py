@@ -40,7 +40,7 @@ class TestCreateGasBranching:
         )
 
         w3.eth.estimate_gas.assert_called_once()
-        assert result["gas"] == 300000
+        assert result["gas"] == int(300000 * 1.2)
 
     def test_gas_nonzero_uses_provided(self):
         w3 = make_mock_w3()

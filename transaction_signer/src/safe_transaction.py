@@ -42,7 +42,8 @@ def create(
 
     # Use dynamic gas usage if 'gas' is set to 0 by the user.
     if gas == 0:
-        unsigned_safe_tx.update({"gas": int(w3.eth.estimate_gas(unsigned_safe_tx))})
+        estimated = int(w3.eth.estimate_gas(unsigned_safe_tx))
+        unsigned_safe_tx.update({"gas": int(estimated * 1.2)})
     else:
         unsigned_safe_tx.update({"gas": gas})
 
