@@ -44,7 +44,7 @@ def sign_typed_data_hash(
             )
             return None
     except Exception as e:
-        client.close()
+        _safe_close(client)
         print(f"An error occurred: {e}")
         return None
 
@@ -59,7 +59,7 @@ def sign_typed_data_hash(
         client.close()
         return signature.signature.hex()
     except Exception as e:
-        client.close()
+        _safe_close(client)
         print(f"An error occurred: {e}")
         return None
 
@@ -97,7 +97,7 @@ def sign_transaction(
             )
             return None
     except Exception as e:
-        client.close()
+        _safe_close(client)
         print(f"An error occurred: {e}")
         return None
 
@@ -150,9 +150,16 @@ def sign_transaction(
         )
         return signed_tx
     except Exception as e:
-        client.close()
+        _safe_close(client)
         print(f"An error occurred while signing transaction: {e}")
         return None
+
+
+def _safe_close(client: TrezorClient):
+    try:
+        client.close()
+    except Exception:
+        pass
 
 
 def get_path(index: int) -> str:
