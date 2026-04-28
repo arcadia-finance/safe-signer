@@ -324,7 +324,7 @@ class TestSignTransaction:
 
         result = sign_transaction(0, SIGNER_ADDRESS, UNSIGNED_TX)
 
-        assert result.raw_transaction.hex().startswith("0x02")
+        assert result.raw_transaction.hex().startswith("02")
 
     @patch("src.wallets.ledger_nano._sign_transaction")
     @patch("src.wallets.ledger_nano.get_address")

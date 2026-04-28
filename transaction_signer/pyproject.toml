@@ -1,30 +1,27 @@
-[tool.poetry]
-name = "transaction_signer"
+[project]
+name = "transaction-signer"
 version = "0.1.0"
 description = ""
-authors = ["Thomas Smets <thomas@arcadia.finance>"]
+authors = [{name = "Thomas Smets", email = "thomas@arcadia.finance"}]
 readme = "../README.md"
-package-mode = false
+requires-python = ">=3.10"
+dependencies = [
+    "eth-abi>=5.2.0",
+    "eth-keys>=0.7.0",
+    "inquirer>=3.4.1",
+    "ipykernel>=7.2.0",
+    "ledgerblue>=0.1.56",
+    "python-dotenv>=1.2.2",
+    "toml>=0.10.2",
+    "trezor>=0.13.10,<0.20.0",
+    "web3>=7.15.0",
+]
 
-[tool.poetry.dependencies]
-python = "3.10.6"
-inquirer = "3.4.0"
-toml = "0.10.2"
-eth-abi = "5.1.0"
-eth-keys = "0.5.1"
-python-dotenv = "1.0.1"
-ledgerblue = "0.1.54"
-trezor = "0.13.9"
-web3 = "7.4.0"
-ipykernel = "6.29.5"
-ruff = "0.5.7"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.0"
+[dependency-groups]
+dev = [
+    "pytest>=9.0",
+    "ruff>=0.15.12",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
