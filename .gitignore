@@ -7,4 +7,3 @@ node_modules
 broadcast/
 *.pyc
 .venv/
-uv.lock

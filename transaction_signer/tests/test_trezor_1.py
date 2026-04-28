@@ -180,7 +180,7 @@ class TestSignTransaction:
 
         result = sign_transaction(0, SIGNER_ADDRESS, UNSIGNED_TX)
 
-        assert result.raw_transaction.hex().startswith("0x02")
+        assert result.raw_transaction.hex().startswith("02")
 
     @patch("src.wallets.trezor_1.ClickUI")
     @patch("src.wallets.trezor_1.TrezorClient")
