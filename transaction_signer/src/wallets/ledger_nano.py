@@ -42,11 +42,11 @@ def sign_typed_data_hash(
             )
             return None
     except CommException as e:
-        dongle.close()
+        _safe_close(dongle)
         print(f"Error communicating with Ledger device: {e}")
         return None
     except Exception as e:
-        dongle.close()
+        _safe_close(dongle)
         print(f"Unexpected error: {e}")
         return None
 
@@ -60,11 +60,11 @@ def sign_typed_data_hash(
         dongle.close()
         return signature.hex()
     except CommException as e:
-        dongle.close()
+        _safe_close(dongle)
         print(f"Error communicating with Ledger device: {e}")
         return None
     except Exception as e:
-        dongle.close()
+        _safe_close(dongle)
         print(f"Unexpected error: {e}")
         return None
 
@@ -102,11 +102,11 @@ def sign_transaction(
             )
             return None
     except CommException as e:
-        dongle.close()
+        _safe_close(dongle)
         print(f"Error communicating with Ledger device: {e}")
         return None
     except Exception as e:
-        dongle.close()
+        _safe_close(dongle)
         print(f"Unexpected error: {e}")
         return None
 
@@ -148,13 +148,20 @@ def sign_transaction(
         )
         return signed_tx
     except CommException as e:
-        dongle.close()
+        _safe_close(dongle)
         print(f"Error communicating with Ledger device: {e}")
         return None
     except Exception as e:
-        dongle.close()
+        _safe_close(dongle)
         print(f"Unexpected error: {e}")
         return None
+
+
+def _safe_close(device):
+    try:
+        device.close()
+    except Exception:
+        pass
 
 
 def get_path(index: int) -> str:
