@@ -8,6 +8,7 @@ from helpers import HW_MESSAGE_HASH as MESSAGE_HASH
 from helpers import HW_SIGNER_ADDRESS as SIGNER_ADDRESS
 from helpers import HW_UNSIGNED_TX as UNSIGNED_TX
 from src.wallets.ledger_nano import (
+    _sign_transaction,
     _sign_typed_data_hash,
     get_address,
     get_path,
@@ -448,3 +449,65 @@ class TestSignTransaction:
         captured = capsys.readouterr()
         assert "Unexpected error" in captured.out
         mock_dongle.close.assert_called_once()
+
+
+class TestInternalSignTransaction:
+    def test_single_chunk_small_payload(self):
+        mock_dongle = MagicMock()
+        v_byte = bytes([1])
+        r_bytes = b"\xaa" * 32
+        s_bytes = b"\xbb" * 32
+        mock_dongle.exchange.return_value = v_byte + r_bytes + s_bytes
+        dongle_path = parse_bip32_path("m/44'/60'/0'/0/0")
+
+        v, r, s = _sign_transaction(mock_dongle, dongle_path, UNSIGNED_TX)
+
+        assert mock_dongle.exchange.call_count == 1
+        sent_apdu = mock_dongle.exchange.call_args[0][0]
+        assert sent_apdu[:2] == bytes.fromhex("e004")
+        assert sent_apdu[2] == 0x00
+        assert sent_apdu[3] == 0x02
+
+    def test_multi_chunk_large_payload(self):
+        mock_dongle = MagicMock()
+        v_byte = bytes([0])
+        r_bytes = b"\xcc" * 32
+        s_bytes = b"\xdd" * 32
+        mock_dongle.exchange.return_value = v_byte + r_bytes + s_bytes
+        dongle_path = parse_bip32_path("m/44'/60'/0'/0/0")
+
+        large_tx = {**UNSIGNED_TX, "data": "0x" + "ab" * 300}
+        _sign_transaction(mock_dongle, dongle_path, large_tx)
+
+        assert mock_dongle.exchange.call_count >= 2
+        calls = mock_dongle.exchange.call_args_list
+        assert calls[0][0][0][2] == 0x00
+        for call in calls[1:]:
+            assert call[0][0][2] == 0x80
+
+    def test_all_chunks_under_255_bytes(self):
+        mock_dongle = MagicMock()
+        mock_dongle.exchange.return_value = bytes([1]) + b"\x01" * 64
+        dongle_path = parse_bip32_path("m/44'/60'/0'/0/0")
+
+        large_tx = {**UNSIGNED_TX, "data": "0x" + "ab" * 300}
+        _sign_transaction(mock_dongle, dongle_path, large_tx)
+
+        for call in mock_dongle.exchange.call_args_list:
+            apdu = call[0][0]
+            payload_len = apdu[4]
+            assert payload_len <= 255
+
+    def test_returns_v_r_s(self):
+        mock_dongle = MagicMock()
+        v_byte = bytes([1])
+        r_bytes = b"\xaa" * 32
+        s_bytes = b"\xbb" * 32
+        mock_dongle.exchange.return_value = v_byte + r_bytes + s_bytes
+        dongle_path = parse_bip32_path("m/44'/60'/0'/0/0")
+
+        v, r, s = _sign_transaction(mock_dongle, dongle_path, UNSIGNED_TX)
+
+        assert v == 1
+        assert r == r_bytes
+        assert s == s_bytes

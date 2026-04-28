@@ -46,7 +46,12 @@ class TestSortBySignerHandlesMixedCase:
     def test_case_insensitive_sort(self):
         addr_lower = "0xabcdef0000000000000000000000000000000000"
         addr_upper = "0xABCDEF0000000000000000000000000000000000"
-        assert int(addr_lower, 16) == int(addr_upper, 16)
+        sigs = {addr_lower: "sig_lower", addr_upper: "sig_upper"}
+        result = sort_by_signer(sigs)
+        assert len(result) == 2
+        assert result[0][0] == result[1][0] or int(result[0][0], 16) <= int(
+            result[1][0], 16
+        )
 
     def test_three_signers_with_problematic_ordering(self):
         sigs = {

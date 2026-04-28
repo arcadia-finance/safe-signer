@@ -157,7 +157,14 @@ class TestTenderlyHappyPath:
         state_objects = sim_call_body["state_objects"]
         assert safe.address in state_objects
         storage = state_objects[safe.address]["storage"]
-        assert len(storage) == 1
+        threshold_slot = (
+            "0x0000000000000000000000000000000000000000000000000000000000000004"
+        )
+        assert threshold_slot in storage
+        assert (
+            storage[threshold_slot]
+            == "0x0000000000000000000000000000000000000000000000000000000000000001"
+        )
 
 
 class TestTenderlyEmptyOwners:

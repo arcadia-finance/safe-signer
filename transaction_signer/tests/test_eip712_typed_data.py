@@ -4,14 +4,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 from eth_abi import encode
 from eth_utils import keccak
-from web3 import Web3
-
 from helpers import SAFE_TX_CONSTANTS, make_mock_safe, make_typed_data
 from src.eip712_typed_data import get_typed_data, get_typed_data_hash, sign
 
-SAFE_TX_TYPEHASH = Web3.to_bytes(
-    hexstr="0xbb8310d486368db6bd6f849402fdd73ad53d316b5a4b2644ad6efe0f941286d8"
-)
+SAFE_TX_TYPE_STRING = "SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)"
+SAFE_TX_TYPEHASH = keccak(text=SAFE_TX_TYPE_STRING)
 
 TO = "0xA1dabEF33b3B82c7814B6D82A79e50F4AC44102B"
 RAW_DATA = "0x1234"
