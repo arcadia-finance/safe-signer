@@ -17,9 +17,8 @@ def get_chain(chains: list) -> dict:
     chain_id = int(answer.split("(Chain Id: ")[1].split(")")[0])
     for i in chains:
         if chain_id == i["chain_id"]:
-            chain = i
-            break
-    return chain
+            return i
+    raise ValueError(f"No chain found with chain_id {chain_id}")
 
 
 def get_safe(safes: list) -> dict:
@@ -38,9 +37,8 @@ def get_safe(safes: list) -> dict:
     safe_address = answer.split("(")[1].split(")")[0]
     for i in safes:
         if safe_address == i["address"]:
-            safe = i
-            break
-    return safe
+            return i
+    raise ValueError(f"No safe found with address {safe_address}")
 
 
 def get_signer(signers: list) -> dict | bool:
@@ -65,9 +63,8 @@ def get_signer(signers: list) -> dict | bool:
         signer_address = answer.split("(")[1].split(")")[0]
         for i in signers:
             if signer_address == i["address"]:
-                signer = i
-                break
-        return signer
+                return i
+        raise ValueError(f"No signer found with address {signer_address}")
 
 
 def get_relayer(relayers: list) -> dict | bool:
@@ -92,6 +89,5 @@ def get_relayer(relayers: list) -> dict | bool:
         relayer_address = answer.split("(")[1].split(")")[0]
         for i in relayers:
             if relayer_address == i["address"]:
-                relayer = i
-                break
-        return relayer
+                return i
+        raise ValueError(f"No relayer found with address {relayer_address}")

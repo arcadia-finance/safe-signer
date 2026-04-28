@@ -103,7 +103,7 @@ def sign(
 
     else:
         input(
-            f'Signer {signer["name"]} ({signer["address"]}), please connect your Device and sign the data with wallet at index {signer["index"]}.\nPress Enter to continue...'
+            f"Signer {signer['name']} ({signer['address']}), please connect your Device and sign the data with wallet at index {signer['index']}.\nPress Enter to continue..."
         )
         # Sign Message.
         if signer["wallet"] == "T":

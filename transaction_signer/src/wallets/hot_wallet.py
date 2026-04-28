@@ -13,7 +13,7 @@ def sign_typed_data(signer_key: str, signer_address: str, w3: any, data: dict) -
     """
 
     address = w3.eth.account.from_key(signer_key).address
-    if address != signer_address:
+    if address.lower() != signer_address.lower():
         print(
             f"Signer Address ({signer_address}) does not match address from private key ({address})"
         )
@@ -38,7 +38,7 @@ def sign_transaction(
     """
 
     address = w3.eth.account.from_key(signer_key).address
-    if address != signer_address:
+    if address.lower() != signer_address.lower():
         print(
             f"Signer Address ({signer_address}) does not match address from private key ({address})"
         )

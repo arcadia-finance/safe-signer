@@ -7,12 +7,12 @@ import src.eip712_typed_data as eip712_typed_data
 import src.safe_transaction as safe_transaction
 import src.tenderly as tenderly
 import src.user_input as user_input
+import src.utils.signatures as signatures
 import src.utils.validate_config as validate_config
 import src.utils.validate_signer as validate_signer
 
 from dotenv import load_dotenv, find_dotenv
 from eth_utils import keccak
-from json.decoder import JSONDecodeError
 from pathlib import Path
 from web3 import Web3
 
@@ -109,14 +109,11 @@ def _get_unsigned_safe_tx(relayer) -> dict | bool:
     signers_to_signatures = all_signatures.get(transaction_hash, {})
 
     # Sort the signatures in ascending order according to public addresses.
-    signers_and_signatures = list(signers_to_signatures.items())
-    signers_and_signatures.sort(key=lambda x: x[0])
+    signers_and_signatures = signatures.sort_by_signer(signers_to_signatures)
 
     # Only continue if threshold of safe is met.
     if len(signers_and_signatures) >= required_signatures:
-        signatures = "0x"
-        for _, signature in signers_and_signatures:
-            signatures += signature
+        packed_signatures = signatures.concatenate(signers_and_signatures)
 
         # Create the unsigned transaction:
         unsigned_safe_tx = safe_transaction.create(
@@ -126,7 +123,7 @@ def _get_unsigned_safe_tx(relayer) -> dict | bool:
             constants,
             raw_data,
             operation,
-            signatures,
+            packed_signatures,
             relayer["address"],
             gas,
             max_fee_per_gas,
@@ -207,7 +204,7 @@ if __name__ == "__main__":
     max_fee_per_gas = config_data["max_fee_per_gas"]
     max_priority_fee_per_gas = config_data["max_priority_fee_per_gas"]
 
-    validate_config.validate(safes, signers, relayers, operation, to)
+    validate_config.validate(safes, signers, relayers, operation, to, chains=chains)
 
     ### Constants ###
     constants = toml.load(os.path.join(path, "data/constants.toml"))
@@ -219,7 +216,12 @@ if __name__ == "__main__":
     # Select the Chain.
     chain = user_input.get_chain(chains)
     # Rpc provider.
-    w3 = Web3(Web3.HTTPProvider(os.getenv(chain["rpc_name"])))
+    rpc_url = os.getenv(chain["rpc_name"])
+    if not rpc_url:
+        raise Exception(
+            f"RPC URL environment variable '{chain['rpc_name']}' is not set."
+        )
+    w3 = Web3(Web3.HTTPProvider(rpc_url))
     if w3.eth.chain_id != chain["chain_id"]:
         raise Exception(f"Chain Id is {w3.eth.chain_id}, expected {chain['chain_id']}")
 
@@ -255,11 +257,7 @@ if __name__ == "__main__":
     print(f"Transaction Hash is: {transaction_hash}")
 
     # Fetch the list of existing signatures, if it exists.
-    try:
-        with open(os.path.join(path, "out/signatures.txt")) as f:
-            all_signatures = json.load(f)
-    except JSONDecodeError:
-        all_signatures = {}
+    all_signatures = signatures.load(str(path))
 
     # Get existing signatures for the Transaction Hash.
     current_signers = list(all_signatures.get(transaction_hash, {}).keys())

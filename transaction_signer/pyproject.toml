@@ -16,10 +16,14 @@ python-dotenv = "1.0.1"
 ledgerblue = "0.1.54"
 trezor = "0.13.9"
 web3 = "7.4.0"
-pip = "24.2"
 ipykernel = "6.29.5"
 ruff = "0.5.7"
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [build-system]
 requires = ["poetry-core"]

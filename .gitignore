@@ -1,3 +1,4 @@
+.DS_Store
 cache/
 transaction_builder/out/
 .env
@@ -5,3 +6,5 @@ build/*
 node_modules
 broadcast/
 *.pyc
+.venv/
+uv.lock
