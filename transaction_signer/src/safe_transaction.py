@@ -1,6 +1,7 @@
 import os
 
 import src.wallets.hot_wallet as hot_wallet
+import src.wallets.ledger_nano as ledger_nano
 import src.wallets.trezor_1 as trezor_1
 import src.wallets.trezor_t as trezor_t
 
@@ -69,7 +70,7 @@ def sign(w3: any, unsigned_safe_tx: dict, relayer: dict) -> dict:
         )
     else:
         input(
-            f'Relayer {relayer["name"]} ({relayer["address"]}), please connect your Device and sign the transaction with wallet at index {relayer["index"]}.\nPress Enter to continue...'
+            f"Relayer {relayer['name']} ({relayer['address']}), please connect your Device and sign the transaction with wallet at index {relayer['index']}.\nPress Enter to continue..."
         )
         if relayer["wallet"] == "T":
             signed_tx = trezor_t.sign_transaction(
@@ -77,6 +78,10 @@ def sign(w3: any, unsigned_safe_tx: dict, relayer: dict) -> dict:
             )
         elif relayer["wallet"] == "1":
             signed_tx = trezor_1.sign_transaction(
+                relayer["index"], relayer["address"], unsigned_safe_tx
+            )
+        elif relayer["wallet"] == "L":
+            signed_tx = ledger_nano.sign_transaction(
                 relayer["index"], relayer["address"], unsigned_safe_tx
             )
         else:

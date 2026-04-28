@@ -51,10 +51,22 @@ def simulate(
         },
         "simulation_type": "quick",
     }
-    headers = {"X-Access-Key": os.getenv("TENDERLY_KEY")}
+    tenderly_key = os.getenv("TENDERLY_KEY")
+    if not tenderly_key:
+        raise Exception("TENDERLY_KEY environment variable is not set.")
+
+    headers = {"X-Access-Key": tenderly_key}
     url = tenderly_url + "/simulate"
     r = requests.post(url=url, json=body, headers=headers)
-    simulation_id = r.json()["simulation"]["id"]
+
+    if r.status_code != 200:
+        raise Exception(f"Tenderly simulation failed (HTTP {r.status_code}): {r.text}")
+
+    response = r.json()
+    if "simulation" not in response or "id" not in response["simulation"]:
+        raise Exception(f"Unexpected Tenderly response: {response}")
+
+    simulation_id = response["simulation"]["id"]
 
     # Make url public accessible.
     url = tenderly_url + f"/simulations/{simulation_id}/share"

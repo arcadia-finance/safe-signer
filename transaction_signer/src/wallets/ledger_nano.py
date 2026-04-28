@@ -1,7 +1,11 @@
+import rlp
 import struct
 
+from eth_utils import keccak, to_bytes
+from hexbytes import HexBytes
 from ledgerblue.comm import getDongle
 from ledgerblue.commException import CommException
+from web3.datastructures import AttributeDict
 
 
 def sign_typed_data_hash(
@@ -32,6 +36,7 @@ def sign_typed_data_hash(
     try:
         address = get_address(dongle, dongle_path)
         if address != signer_address:
+            dongle.close()
             print(
                 f"Address at given index ({address}) does not match signers address ({signer_address})"
             )
@@ -54,6 +59,94 @@ def sign_typed_data_hash(
         )
         dongle.close()
         return signature.hex()
+    except CommException as e:
+        dongle.close()
+        print(f"Error communicating with Ledger device: {e}")
+        return None
+    except Exception as e:
+        dongle.close()
+        print(f"Unexpected error: {e}")
+        return None
+
+
+def sign_transaction(
+    signer_index: int, signer_address: str, unsigned_safe_tx: dict
+) -> str:
+    """
+    Sign an Ethereum transaction using a Ledger device.
+
+    :param signer_index: The index of the BIP32 path of the Ethereum address used for signing.
+    :param signer_address: The public address of the signer.
+    :param unsigned_safe_tx: The unsigned transaction to sign.
+    :return: the signed transaction.
+    """
+
+    # Parse Dongle Path.
+    path = get_path(signer_index)
+    dongle_path = parse_bip32_path(path)
+
+    # Connect Ledger.
+    try:
+        dongle = getDongle(True)
+    except CommException as e:
+        print(f"Error communicating with Ledger device: {e}")
+        return None
+
+    # Verify that the given public address matches the address at the BIP32 path.
+    try:
+        address = get_address(dongle, dongle_path)
+        if address != signer_address:
+            dongle.close()
+            print(
+                f"Address at given index ({address}) does not match signers address ({signer_address})"
+            )
+            return None
+    except CommException as e:
+        dongle.close()
+        print(f"Error communicating with Ledger device: {e}")
+        return None
+    except Exception as e:
+        dongle.close()
+        print(f"Unexpected error: {e}")
+        return None
+
+    # Sign transaction.
+    try:
+        (v, r, s) = _sign_transaction(dongle, dongle_path, unsigned_safe_tx)
+        dongle.close()
+
+        # RLP encoding
+        signed_raw_tx = HexBytes(
+            "0x02"
+            + rlp.encode(
+                [
+                    unsigned_safe_tx["chainId"],
+                    unsigned_safe_tx["nonce"],
+                    unsigned_safe_tx["maxPriorityFeePerGas"],
+                    unsigned_safe_tx["maxFeePerGas"],
+                    unsigned_safe_tx["gas"],
+                    to_bytes(hexstr=unsigned_safe_tx["to"]),
+                    unsigned_safe_tx["value"],
+                    to_bytes(hexstr=unsigned_safe_tx["data"]),
+                    [],  # Access list
+                    v,
+                    r,
+                    s,
+                ],
+                sedes=None,
+            ).hex()
+        )
+
+        signed_tx = AttributeDict(
+            {
+                "raw_transaction": signed_raw_tx,
+                "hash": HexBytes(keccak(signed_raw_tx)),
+                "r": int.from_bytes(r, "big"),
+                "s": int.from_bytes(s, "big"),
+                "v": v,
+            }
+        )
+        return signed_tx
     except CommException as e:
         dongle.close()
         print(f"Error communicating with Ledger device: {e}")
@@ -131,3 +224,48 @@ def _sign_typed_data_hash(
 
     signature = r + s + v
     return signature
+
+
+def _sign_transaction(dongle: any, dongle_path: bytes, unsigned_safe_tx: dict) -> tuple:
+    # RLP-encode the unsigned EIP-1559 transaction.
+    encoded_tx = rlp.encode(
+        [
+            unsigned_safe_tx["chainId"],
+            unsigned_safe_tx["nonce"],
+            unsigned_safe_tx["maxPriorityFeePerGas"],
+            unsigned_safe_tx["maxFeePerGas"],
+            unsigned_safe_tx["gas"],
+            to_bytes(hexstr=unsigned_safe_tx["to"]),
+            unsigned_safe_tx["value"],
+            to_bytes(hexstr=unsigned_safe_tx["data"]),
+            [],
+        ],
+        sedes=None,
+    )
+    # EIP-1559 tx type prefix.
+    payload = b"\x02" + encoded_tx
+
+    # First chunk includes the BIP32 path.
+    path_len = len(dongle_path) // 4
+    first_chunk = bytes([path_len]) + dongle_path + payload
+    chunks = [first_chunk]
+
+    # The Ledger Ethereum app accepts up to 255 bytes per APDU payload.
+    while len(chunks[-1]) > 255:
+        oversized = chunks.pop()
+        chunks.append(oversized[:255])
+        chunks.append(oversized[255:])
+
+    result = None
+    for i, chunk in enumerate(chunks):
+        # P1: 0x00 for first chunk, 0x80 for subsequent chunks.
+        p1 = 0x00 if i == 0 else 0x80
+        apdu = bytearray.fromhex("e004") + bytes([p1, 0x02])
+        apdu.append(len(chunk))
+        apdu += chunk
+        result = dongle.exchange(bytes(apdu))
+
+    v = result[0]
+    r = bytes(result[1 : 1 + 32])
+    s = bytes(result[1 + 32 : 1 + 64])
+    return (v, r, s)

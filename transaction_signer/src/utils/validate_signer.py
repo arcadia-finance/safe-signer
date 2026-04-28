@@ -23,7 +23,7 @@ def validate(
 
     else:
         print(
-            f'Signer {signer["name"]} ({signer["address"]}) is not an owner of the safe {safe.address}.'
+            f"Signer {signer['name']} ({signer['address']}) is not an owner of the safe {safe.address}."
         )
     # Return False if not successful.
     return False

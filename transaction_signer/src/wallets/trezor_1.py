@@ -38,6 +38,7 @@ def sign_typed_data_hash(
     try:
         address = ethereum.get_address(client=client, n=bip32_path)
         if address != signer_address:
+            client.close()
             print(
                 f"Address at given index ({address}) does not match signers address ({signer_address})"
             )
@@ -90,6 +91,7 @@ def sign_transaction(
     try:
         address = ethereum.get_address(client=client, n=bip32_path)
         if address != signer_address:
+            client.close()
             print(
                 f"Address at given index ({address}) does not match signers address ({signer_address})"
             )
