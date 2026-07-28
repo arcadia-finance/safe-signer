@@ -3,6 +3,12 @@ import requests
 
 from web3 import Web3
 
+# Tenderly returns a 400 if the gas limit is unset.
+GAS_LIMIT = 8_000_000
+
+# Tenderly returns a 400 if the sender cannot cover the gas.
+SENDER_BALANCE = str(10**18)
+
 
 def simulate(
     safe: any,
@@ -44,10 +50,12 @@ def simulate(
         "from": sender,
         "to": safe.address,
         "input": tx_data["data"],
+        "gas": GAS_LIMIT,
         "save": True,
         "save_if_fails": True,
         "state_objects": {
-            safe.address: {"storage": {storage_slot_threshold: new_threshold}}
+            safe.address: {"storage": {storage_slot_threshold: new_threshold}},
+            sender: {"balance": SENDER_BALANCE},
         },
         "simulation_type": "quick",
     }
