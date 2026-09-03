@@ -24,26 +24,57 @@ class TestSignatureLoadingHappyPath:
         assert load(str(tmp_path)) == sigs
 
 
-class TestSignatureLoadingFallback:
-    def test_empty_file(self, tmp_path):
-        out_dir = tmp_path / "out"
-        out_dir.mkdir()
-        (out_dir / "signatures.txt").write_text("")
-        assert load(str(tmp_path)) == {}
-
+class TestSignatureLoadingNoFile:
     def test_missing_file(self, tmp_path):
-        assert load(str(tmp_path)) == {}
-
-    def test_malformed_json(self, tmp_path):
-        out_dir = tmp_path / "out"
-        out_dir.mkdir()
-        (out_dir / "signatures.txt").write_text("{bad json")
         assert load(str(tmp_path)) == {}
 
     def test_missing_out_directory(self, tmp_path):
         assert load(str(tmp_path)) == {}
 
-    def test_json_array_instead_of_dict_raises(self, tmp_path):
+    def test_explicit_empty_object(self, tmp_path):
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        (out_dir / "signatures.txt").write_text("{}")
+        assert load(str(tmp_path)) == {}
+
+
+class TestSignatureLoadingUnreadableFileRaises:
+    def test_empty_file(self, tmp_path):
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        (out_dir / "signatures.txt").write_text("")
+        with pytest.raises(ValueError, match="Could not parse"):
+            load(str(tmp_path))
+
+    def test_malformed_json(self, tmp_path):
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        (out_dir / "signatures.txt").write_text("{bad json")
+        with pytest.raises(ValueError, match="Could not parse"):
+            load(str(tmp_path))
+
+    def test_truncated_file(self, tmp_path):
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        sigs = {"hash_a": {"0xAddr1": "sig1"}}
+        (out_dir / "signatures.txt").write_text(json.dumps(sigs)[:-3])
+        with pytest.raises(ValueError, match="Could not parse"):
+            load(str(tmp_path))
+
+    def test_unresolved_merge_conflict(self, tmp_path):
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        (out_dir / "signatures.txt").write_text(
+            "<<<<<<< HEAD\n"
+            f"{json.dumps({'hash_a': {'0xAddr1': 'sig1'}})}\n"
+            "=======\n"
+            f"{json.dumps({'hash_b': {'0xAddr2': 'sig2'}})}\n"
+            ">>>>>>> origin/main\n"
+        )
+        with pytest.raises(ValueError, match="Could not parse"):
+            load(str(tmp_path))
+
+    def test_json_array_instead_of_dict(self, tmp_path):
         out_dir = tmp_path / "out"
         out_dir.mkdir()
         (out_dir / "signatures.txt").write_text("[1, 2, 3]")
