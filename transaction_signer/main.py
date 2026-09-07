@@ -91,8 +91,7 @@ def sign_typed_data():
         f"{len(current_signers)}/{required_signatures} signatures are collected, from {current_signers}"
     )
 
-    with open(os.path.join(path, "out/signatures.txt"), "w") as f:
-        json.dump(all_signatures, f)
+    signatures.append(str(path), transaction_hash, signer["address"], signature)
 
 
 def simulate_on_tenderly():
