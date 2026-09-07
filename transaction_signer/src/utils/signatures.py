@@ -11,11 +11,17 @@ def sort_by_signer(signers_to_signatures: dict) -> list:
 
 
 def load(path: str) -> dict:
+    file_path = os.path.join(path, "out/signatures.txt")
     try:
-        with open(os.path.join(path, "out/signatures.txt")) as f:
+        with open(file_path) as f:
             data = json.load(f)
-    except (JSONDecodeError, FileNotFoundError):
+    except FileNotFoundError:
         return {}
+    except JSONDecodeError as e:
+        raise ValueError(
+            f"Could not parse {file_path}: {e}. Signing now would overwrite the "
+            'collected signatures. Resolve the file, or write "{}" to start over.'
+        ) from e
 
     if not isinstance(data, dict):
         raise TypeError(f"Expected dict in signatures file, got {type(data).__name__}")
