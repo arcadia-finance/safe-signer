@@ -3,10 +3,11 @@ import rlp
 from eth_utils import keccak, to_bytes
 from hexbytes import HexBytes
 from trezorlib import ethereum
-from trezorlib.client import TrezorClient
+from trezorlib.cli import get_passphrase
+from trezorlib.cli.ui import ClickUI
+from trezorlib.client import TrezorClient, get_default_client, get_default_session
 from trezorlib.tools import parse_path
-from trezorlib.transport import get_transport, TransportException
-from trezorlib.ui import ClickUI
+from trezorlib.exceptions import TrezorException
 from web3.datastructures import AttributeDict
 
 
@@ -28,40 +29,37 @@ def sign_typed_data_hash(
 
     # Connect Trezor.
     try:
-        transport = get_transport()
-        client = TrezorClient(transport, ui=ClickUI())
-    except TransportException as e:
+        client = _get_client()
+    except TrezorException as e:
         print(f"Error communicating with Trezor device: {e}")
         return None
 
-    # Verify that the given public address matches the address at the BIP32 path.
-    try:
-        address = ethereum.get_address(client=client, n=bip32_path)
-        if address.lower() != signer_address.lower():
-            client.close()
-            print(
-                f"Address at given index ({address}) does not match signers address ({signer_address})"
-            )
+    with client:
+        # Verify that the given public address matches the address at the BIP32 path.
+        try:
+            session = get_default_session(client, passphrase_callback=get_passphrase)
+            address = ethereum.get_address(session, n=bip32_path)
+            if address.lower() != signer_address.lower():
+                print(
+                    f"Address at given index ({address}) does not match signers address ({signer_address})"
+                )
+                return None
+        except Exception as e:
+            print(f"An error occurred: {e}")
             return None
-    except Exception as e:
-        _safe_close(client)
-        print(f"An error occurred: {e}")
-        return None
 
-    # Sign the hashed message.
-    try:
-        signature = ethereum.sign_typed_data_hash(
-            client=client,
-            n=bip32_path,
-            domain_hash=domain_hash,
-            message_hash=message_hash,
-        )
-        client.close()
-        return signature.signature.hex()
-    except Exception as e:
-        _safe_close(client)
-        print(f"An error occurred: {e}")
-        return None
+        # Sign the hashed message.
+        try:
+            signature = ethereum.sign_typed_data_hash(
+                session,
+                n=bip32_path,
+                domain_hash=domain_hash,
+                message_hash=message_hash,
+            )
+            return signature.signature.hex()
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None
 
 
 def sign_transaction(
@@ -81,85 +79,84 @@ def sign_transaction(
 
     # Connect Trezor.
     try:
-        transport = get_transport()
-        client = TrezorClient(transport, ui=ClickUI())
-    except TransportException as e:
+        client = _get_client()
+    except TrezorException as e:
         print(f"Error communicating with Trezor device: {e}")
         return None
 
-    # Verify that the given public address matches the address at the BIP32 path.
-    try:
-        address = ethereum.get_address(client=client, n=bip32_path)
-        if address.lower() != signer_address.lower():
-            client.close()
-            print(
-                f"Address at given index ({address}) does not match signers address ({signer_address})"
-            )
+    with client:
+        # Verify that the given public address matches the address at the BIP32 path.
+        try:
+            session = get_default_session(client, passphrase_callback=get_passphrase)
+            address = ethereum.get_address(session, n=bip32_path)
+            if address.lower() != signer_address.lower():
+                print(
+                    f"Address at given index ({address}) does not match signers address ({signer_address})"
+                )
+                return None
+        except Exception as e:
+            print(f"An error occurred: {e}")
             return None
-    except Exception as e:
-        _safe_close(client)
-        print(f"An error occurred: {e}")
-        return None
 
-    # Sign transaction.
-    try:
-        (v, r, s) = ethereum.sign_tx_eip1559(
-            client=client,
-            n=bip32_path,
-            nonce=unsigned_safe_tx["nonce"],
-            gas_limit=unsigned_safe_tx["gas"],
-            to=unsigned_safe_tx["to"],
-            value=unsigned_safe_tx["value"],
-            data=to_bytes(hexstr=unsigned_safe_tx["data"]),
-            chain_id=unsigned_safe_tx["chainId"],
-            max_gas_fee=unsigned_safe_tx["maxFeePerGas"],
-            max_priority_fee=unsigned_safe_tx["maxPriorityFeePerGas"],
-        )
-        client.close()
+        # Sign transaction.
+        try:
+            (v, r, s) = ethereum.sign_tx_eip1559(
+                session,
+                n=bip32_path,
+                nonce=unsigned_safe_tx["nonce"],
+                gas_limit=unsigned_safe_tx["gas"],
+                to=unsigned_safe_tx["to"],
+                value=unsigned_safe_tx["value"],
+                data=to_bytes(hexstr=unsigned_safe_tx["data"]),
+                chain_id=unsigned_safe_tx["chainId"],
+                max_gas_fee=unsigned_safe_tx["maxFeePerGas"],
+                max_priority_fee=unsigned_safe_tx["maxPriorityFeePerGas"],
+            )
 
-        # RLP encoding
-        signed_raw_tx = HexBytes(
-            "0x02"
-            + rlp.encode(
-                [
-                    unsigned_safe_tx["chainId"],
-                    unsigned_safe_tx["nonce"],
-                    unsigned_safe_tx["maxPriorityFeePerGas"],
-                    unsigned_safe_tx["maxFeePerGas"],
-                    unsigned_safe_tx["gas"],
-                    to_bytes(hexstr=unsigned_safe_tx["to"]),
-                    unsigned_safe_tx["value"],
-                    to_bytes(hexstr=unsigned_safe_tx["data"]),
-                    [],  # Access list
-                    v,
-                    int.from_bytes(r, "big"),
-                    int.from_bytes(s, "big"),
-                ],
-                sedes=None,
-            ).hex()
-        )
+            # RLP encoding
+            signed_raw_tx = HexBytes(
+                "0x02"
+                + rlp.encode(
+                    [
+                        unsigned_safe_tx["chainId"],
+                        unsigned_safe_tx["nonce"],
+                        unsigned_safe_tx["maxPriorityFeePerGas"],
+                        unsigned_safe_tx["maxFeePerGas"],
+                        unsigned_safe_tx["gas"],
+                        to_bytes(hexstr=unsigned_safe_tx["to"]),
+                        unsigned_safe_tx["value"],
+                        to_bytes(hexstr=unsigned_safe_tx["data"]),
+                        [],  # Access list
+                        v,
+                        int.from_bytes(r, "big"),
+                        int.from_bytes(s, "big"),
+                    ],
+                    sedes=None,
+                ).hex()
+            )
 
-        signed_tx = AttributeDict(
-            {
-                "raw_transaction": signed_raw_tx,
-                "hash": HexBytes(keccak(signed_raw_tx)),
-                "r": int.from_bytes(r, "big"),
-                "s": int.from_bytes(s, "big"),
-                "v": v,
-            }
-        )
-        return signed_tx
-    except Exception as e:
-        _safe_close(client)
-        print(f"An error occurred while signing transaction: {e}")
-        return None
+            signed_tx = AttributeDict(
+                {
+                    "raw_transaction": signed_raw_tx,
+                    "hash": HexBytes(keccak(signed_raw_tx)),
+                    "r": int.from_bytes(r, "big"),
+                    "s": int.from_bytes(s, "big"),
+                    "v": v,
+                }
+            )
+            return signed_tx
+        except Exception as e:
+            print(f"An error occurred while signing transaction: {e}")
+            return None
 
 
-def _safe_close(client: TrezorClient):
-    try:
-        client.close()
-    except Exception:
-        pass
+def _get_client() -> TrezorClient:
+    ui = ClickUI()
+    return get_default_client(
+        "transaction-signer",
+        button_callback=ui.button_request,
+        pin_callback=ui.get_pin,
+    )
 
 
 def get_path(index: int) -> str:

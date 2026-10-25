@@ -4,24 +4,35 @@ version = "0.1.0"
 description = ""
 authors = [{name = "Thomas Smets", email = "thomas@arcadia.finance"}]
 readme = "../README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 dependencies = [
-    "eth-abi>=5.2.0",
-    "eth-keys>=0.7.0",
+    "eth-abi>=6.0.0",
+    "eth-account>=0.14.0",
+    "eth-utils>=6.0.0",
+    "hexbytes>=2.0.0",
     "inquirer>=3.4.1",
-    "ipykernel>=7.2.0",
-    "ledgerblue>=0.1.56",
-    "python-dotenv>=1.2.2",
+    "ledgerblue>=0.1.58",
+    "python-dotenv>=1.2.3",
+    "requests>=2.34.2",
+    "rlp>=5.0.0",
     "toml>=0.10.2",
-    "trezor>=0.13.10,<0.20.0",
-    "web3>=7.15.0",
+    "trezor>=0.20.2",
+    "web3>=8.0.0",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest>=9.0",
-    "ruff>=0.15.12",
+    "pytest>=9.1.1",
+    "ruff>=0.16.9",
 ]
+
+[tool.uv]
+exclude-newer = "4 weeks"
+exclude-newer-package = { aiohttp = "2026-10-06T00:00:00Z", certifi = "2026-10-21T00:00:00Z", pillow = "2026-10-17T00:00:00Z" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = ["error"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
