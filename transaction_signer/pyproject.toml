@@ -28,7 +28,7 @@ dev = [
 
 [tool.uv]
 exclude-newer = "4 weeks"
-exclude-newer-package = { aiohttp = "2026-10-06T00:00:00Z", certifi = "2026-10-21T00:00:00Z", pillow = "2026-10-17T00:00:00Z" }
+exclude-newer-package = { aiohttp = "1 week", certifi = "1 day", pillow = "1 week" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

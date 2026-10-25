@@ -7,9 +7,9 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P4W"
 
 [options.exclude-newer-package]
-aiohttp = "2026-10-06T00:00:00Z"
-certifi = "2026-10-21T00:00:00Z"
-pillow = "2026-10-17T00:00:00Z"
+aiohttp = { timestamp = "0001-01-01T00:00:00Z", span = "P1W" }
+certifi = { timestamp = "0001-01-01T00:00:00Z", span = "P1D" }
+pillow = { timestamp = "0001-01-01T00:00:00Z", span = "P1W" }
 
 [[package]]
 name = "aiohappyeyeballs"
