@@ -20,7 +20,7 @@ To generate the signatures for a Safe Transaction:
    - If simulating transactions on Tenderly, set TENDERLY_KEY, TENDERLY_ACCOUNT and TENDERLY_PROJECT.
 3) Run the script:
    - Go to the transaction_signer repository.
-   - Run "poetry run python main.py".
+   - Run "uv run python main.py".
    - Select the Safe.
    - Optionally, select: "Simulate transaction on Tenderly".
    - Select "Sign Message".
@@ -40,7 +40,7 @@ To broadcast the signed Safe Transaction:
 1) The threshold of required number of signatures must be reached
 2) Run the script:
    - Go to the transaction_signer repository.
-   - Run "poetry run python main.py".
+   - Run "uv run python main.py".
    - Select the Safe.
    - Optionally: Simulate transaction on Tenderly.
    - Select "Broadcast signed Safe tx".
@@ -48,3 +48,14 @@ To broadcast the signed Safe Transaction:
    - For the relayers, the following devices are currently supported:
      - Trezor T (clear signing).
      - Hot Wallet (blind signing).
+
+To test the Trezor wallets against the Trezor emulator:
+1) Start a Trezor T (T2T1) or Trezor 1 (T1B1) emulator, e.g. with trezor-user-env (https://github.com/trezor/trezor-user-env).
+2) Set it up with the mnemonic "all all all all all all all all all all all all", without PIN and passphrase.
+3) The emulator must be reachable over UDP (default udp:127.0.0.1:21324, debug link on the next port).
+   - On Linux, trezor-user-env uses host networking and this works as is.
+   - Otherwise forward both ports and set TREZOR_PATH, e.g. TREZOR_PATH=udp:127.0.0.1:21424.
+4) Run the tests:
+   - Go to the transaction_signer repository.
+   - Run "TREZOR_EMULATOR=1 uv run pytest tests/test_trezor_emulator.py".
+   - Without TREZOR_EMULATOR=1 these tests are skipped.
