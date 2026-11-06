@@ -4,20 +4,25 @@ from unittest.mock import MagicMock, patch
 import pytest
 from eth_abi import encode
 from eth_utils import keccak
-from helpers import SAFE_TX_CONSTANTS, make_mock_safe, make_typed_data
-from src.eip712_typed_data import get_typed_data, get_typed_data_hash, sign
+from helpers import SAFE_TX_CONSTANTS, make_typed_data
+from src.eip712_typed_data import (
+    get_transaction_hash,
+    get_typed_data,
+    get_typed_data_hash,
+    sign,
+)
 
 SAFE_TX_TYPE_STRING = "SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)"
 SAFE_TX_TYPEHASH = keccak(text=SAFE_TX_TYPE_STRING)
 
 TO = "0xA1dabEF33b3B82c7814B6D82A79e50F4AC44102B"
+SAFE = "0x1111111111111111111111111111111111111111"
 RAW_DATA = "0x1234"
 
 
 class TestGetTypedData:
     def test_populates_all_fields(self):
-        safe = make_mock_safe(nonce=5, chain_id=8453)
-        result = get_typed_data(safe, TO, RAW_DATA, 1, SAFE_TX_CONSTANTS)
+        result = get_typed_data(SAFE, 8453, TO, RAW_DATA, 1, 5, SAFE_TX_CONSTANTS)
 
         assert result["primaryType"] == "SafeTx"
         assert result["message"]["to"] == TO
@@ -25,11 +30,10 @@ class TestGetTypedData:
         assert result["message"]["operation"] == 1
         assert result["message"]["nonce"] == 5
         assert result["domain"]["chainId"] == 8453
-        assert result["domain"]["verifyingContract"] == safe.address
+        assert result["domain"]["verifyingContract"] == SAFE
 
     def test_uses_constants(self):
-        safe = make_mock_safe()
-        result = get_typed_data(safe, TO, RAW_DATA, 0, SAFE_TX_CONSTANTS)
+        result = get_typed_data(SAFE, 8453, TO, RAW_DATA, 0, 0, SAFE_TX_CONSTANTS)
 
         assert result["message"]["value"] == SAFE_TX_CONSTANTS["VALUE_SAFE_TX"]
         assert result["message"]["safeTxGas"] == SAFE_TX_CONSTANTS["SAFE_TX_GAS"]
@@ -38,30 +42,17 @@ class TestGetTypedData:
             result["message"]["refundReceiver"] == SAFE_TX_CONSTANTS["REFUND_RECEIVER"]
         )
 
-    def test_calls_safe_contract(self):
-        safe = make_mock_safe()
-        get_typed_data(safe, TO, RAW_DATA, 0, SAFE_TX_CONSTANTS)
-
-        safe.functions.nonce.assert_called_once()
-        safe.functions.getChainId.assert_called_once()
-
     def test_missing_constant_key_raises(self):
-        safe = make_mock_safe()
         incomplete = {k: v for k, v in SAFE_TX_CONSTANTS.items() if k != "GAS_TOKEN"}
         with pytest.raises(KeyError):
-            get_typed_data(safe, TO, RAW_DATA, 0, incomplete)
+            get_typed_data(SAFE, 8453, TO, RAW_DATA, 0, 0, incomplete)
 
-    def test_nonce_call_failure_propagates(self):
-        safe = make_mock_safe()
-        safe.functions.nonce.return_value.call.side_effect = Exception("RPC error")
-        with pytest.raises(Exception, match="RPC error"):
-            get_typed_data(safe, TO, RAW_DATA, 0, SAFE_TX_CONSTANTS)
 
-    def test_chain_id_call_failure_propagates(self):
-        safe = make_mock_safe()
-        safe.functions.getChainId.return_value.call.side_effect = Exception("RPC error")
-        with pytest.raises(Exception, match="RPC error"):
-            get_typed_data(safe, TO, RAW_DATA, 0, SAFE_TX_CONSTANTS)
+class TestGetTransactionHash:
+    def test_matches_manual_keccak(self):
+        result = get_transaction_hash(b"\x01" * 32, b"\x02" * 32, "0x1901")
+
+        assert result == keccak(b"\x19\x01" + b"\x01" * 32 + b"\x02" * 32).hex()
 
 
 class TestGetTypedDataHash:

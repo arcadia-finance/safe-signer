@@ -2,17 +2,13 @@ from unittest.mock import patch
 
 import pytest
 
-from src.user_input import get_chain, get_relayer, get_safe, get_signer
+from src.user_input import (
+    describe_transaction,
+    get_relayer,
+    get_signer,
+    get_transaction,
+)
 
-CHAINS = [
-    {"name": "Base", "chain_id": 8453, "rpc_name": "RPC_BASE"},
-    {"name": "Optimism", "chain_id": 10, "rpc_name": "RPC_OPTIMISM"},
-]
-
-SAFES = [
-    {"name": "Safe A", "address": "0x1111111111111111111111111111111111111111"},
-    {"name": "Safe B", "address": "0x2222222222222222222222222222222222222222"},
-]
 
 SIGNERS = [
     {"name": "Signer A", "address": "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"},
@@ -23,47 +19,6 @@ RELAYERS = [
     {"name": "Relayer A", "address": "0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"},
     {"name": "Relayer B", "address": "0xDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"},
 ]
-
-
-class TestGetChain:
-    @patch("src.user_input.inquirer.prompt")
-    def test_selects_first_chain(self, mock_prompt):
-        mock_prompt.return_value = {"chains": "Base (Chain Id: 8453)"}
-        result = get_chain(CHAINS)
-        assert result == CHAINS[0]
-        assert result["chain_id"] == 8453
-
-    @patch("src.user_input.inquirer.prompt")
-    def test_selects_second_chain(self, mock_prompt):
-        mock_prompt.return_value = {"chains": "Optimism (Chain Id: 10)"}
-        result = get_chain(CHAINS)
-        assert result == CHAINS[1]
-        assert result["rpc_name"] == "RPC_OPTIMISM"
-
-    @patch("src.user_input.inquirer.prompt")
-    def test_parses_chain_id_from_formatted_string(self, mock_prompt):
-        mock_prompt.return_value = {"chains": "Some Chain (Chain Id: 42161)"}
-        chains = [{"name": "Some Chain", "chain_id": 42161, "rpc_name": "RPC_ARB"}]
-        result = get_chain(chains)
-        assert result["chain_id"] == 42161
-
-
-class TestGetSafe:
-    @patch("src.user_input.inquirer.prompt")
-    def test_selects_safe_by_address(self, mock_prompt):
-        mock_prompt.return_value = {
-            "safes": "Safe A (0x1111111111111111111111111111111111111111)"
-        }
-        result = get_safe(SAFES)
-        assert result == SAFES[0]
-
-    @patch("src.user_input.inquirer.prompt")
-    def test_selects_second_safe(self, mock_prompt):
-        mock_prompt.return_value = {
-            "safes": "Safe B (0x2222222222222222222222222222222222222222)"
-        }
-        result = get_safe(SAFES)
-        assert result == SAFES[1]
 
 
 class TestGetSigner:
@@ -116,32 +71,6 @@ class TestGetRelayer:
         assert len(choices) == len(RELAYERS) + 1
 
 
-class TestGetChainMalformedResponse:
-    @patch("src.user_input.inquirer.prompt")
-    def test_missing_chain_id_format_raises(self, mock_prompt):
-        mock_prompt.return_value = {"chains": "Base"}
-        with pytest.raises(IndexError):
-            get_chain(CHAINS)
-
-
-class TestGetChainNoMatch:
-    @patch("src.user_input.inquirer.prompt")
-    def test_unmatched_chain_id_raises(self, mock_prompt):
-        mock_prompt.return_value = {"chains": "Fake (Chain Id: 99999)"}
-        with pytest.raises(ValueError):
-            get_chain(CHAINS)
-
-
-class TestGetSafeNoMatch:
-    @patch("src.user_input.inquirer.prompt")
-    def test_unmatched_address_raises(self, mock_prompt):
-        mock_prompt.return_value = {
-            "safes": "Unknown (0x0000000000000000000000000000000000000000)"
-        }
-        with pytest.raises(ValueError):
-            get_safe(SAFES)
-
-
 class TestGetSignerNoMatch:
     @patch("src.user_input.inquirer.prompt")
     def test_unmatched_address_raises(self, mock_prompt):
@@ -162,21 +91,108 @@ class TestGetRelayerNoMatch:
             get_relayer(RELAYERS)
 
 
-class TestGetChainSingleItem:
-    @patch("src.user_input.inquirer.prompt")
-    def test_single_chain(self, mock_prompt):
-        single = [CHAINS[0]]
-        mock_prompt.return_value = {"chains": "Base (Chain Id: 8453)"}
-        result = get_chain(single)
-        assert result == single[0]
+def _entry(number, status="next", nonce=10, name=None, transaction_hash="aa"):
+    return {
+        "number": number,
+        "name": name,
+        "chain": {"name": "Base"},
+        "safe_config": {"name": "Treasury"},
+        "nonce": nonce,
+        "threshold": 3,
+        "status": status,
+        "transaction_hash": transaction_hash,
+        "reason": "RPC down",
+    }
 
 
-class TestGetSafeSingleItem:
+class TestDescribeTransaction:
+    def test_with_name(self):
+        assert (
+            describe_transaction(_entry(1, name="Staking rewards"))
+            == "#1 Staking rewards · Base · Treasury"
+        )
+
+    def test_without_name(self):
+        assert describe_transaction(_entry(2)) == "#2 Base · Treasury"
+
+
+class TestGetTransaction:
+    def _choices(self, mock_prompt):
+        return mock_prompt.call_args.args[0][0].choices
+
     @patch("src.user_input.inquirer.prompt")
-    def test_single_safe(self, mock_prompt):
-        single = [SAFES[0]]
-        mock_prompt.return_value = {
-            "safes": "Safe A (0x1111111111111111111111111111111111111111)"
+    def test_labels(self, mock_prompt):
+        mock_prompt.return_value = {"transactions": "Exit"}
+        entries = [
+            _entry(1, name="Staking rewards"),
+            _entry(2, status="queued", nonce=11, transaction_hash="bb"),
+        ]
+
+        get_transaction(entries, {"aa": {"0x1": "s", "0x2": "s"}})
+
+        assert self._choices(mock_prompt) == [
+            "#1 Staking rewards · Base · Treasury · nonce 10 · 2/3 signed · next",
+            "#2                 · Base · Treasury · nonce 11 · 0/3 signed · queued",
+            "Exit",
+        ]
+
+    @patch("src.user_input.inquirer.prompt")
+    def test_columns_aligned(self, mock_prompt):
+        mock_prompt.return_value = {"transactions": "Exit"}
+        long_chain = {**_entry(10), "chain": {"name": "Base Sepolia"}}
+        long_safe = {**_entry(9, nonce=9), "safe_config": {"name": "Test Safe 1/2"}}
+
+        get_transaction([long_safe, long_chain], {})
+
+        assert self._choices(mock_prompt)[:2] == [
+            "#9  Base         · Test Safe 1/2 · nonce 9  · 0/3 signed · next",
+            "#10 Base Sepolia · Treasury      · nonce 10 · 0/3 signed · next",
+        ]
+
+    @patch("src.user_input.inquirer.prompt")
+    def test_unresolved_aligned_with_resolved(self, mock_prompt):
+        mock_prompt.return_value = {"transactions": "Exit"}
+        unresolved = {
+            **_entry(1, status="unresolved"),
+            "chain": {"name": "Base Sepolia"},
         }
-        result = get_safe(single)
-        assert result == single[0]
+
+        get_transaction([unresolved, _entry(2)], {})
+
+        assert self._choices(mock_prompt)[:2] == [
+            "#1 Base Sepolia · Treasury · unresolved",
+            "#2 Base         · Treasury · nonce 10 · 0/3 signed · next",
+        ]
+
+    @patch("src.user_input.inquirer.prompt")
+    def test_unresolved_label(self, mock_prompt):
+        mock_prompt.return_value = {"transactions": "Exit"}
+
+        get_transaction([_entry(1, status="unresolved")], {})
+
+        assert self._choices(mock_prompt)[0] == "#1 Base · Treasury · unresolved"
+
+    @patch("src.user_input.inquirer.prompt")
+    def test_executed_left_out(self, mock_prompt):
+        mock_prompt.return_value = {"transactions": "Exit"}
+
+        get_transaction([_entry(1, status="executed"), _entry(2)], {})
+
+        assert len(self._choices(mock_prompt)) == 2
+
+    @patch("src.user_input.inquirer.prompt")
+    def test_exit_returns_false(self, mock_prompt):
+        mock_prompt.return_value = {"transactions": "Exit"}
+        assert get_transaction([_entry(1)], {}) is False
+
+    @patch("src.user_input.inquirer.prompt")
+    def test_prompt_none_returns_false(self, mock_prompt):
+        mock_prompt.return_value = None
+        assert get_transaction([_entry(1)], {}) is False
+
+    @patch("src.user_input.inquirer.prompt")
+    def test_returns_selected_entry(self, mock_prompt):
+        entries = [_entry(1, status="executed"), _entry(2), _entry(3)]
+        mock_prompt.side_effect = lambda q: {"transactions": q[0].choices[1]}
+
+        assert get_transaction(entries, {}) is entries[2]

@@ -1,21 +1,4 @@
 ##################
-### USER INPUT ###
-##################
-# User input will be different for each transaction.
-
-## RAW DATA ##
-# The calldata to be executed by the safe.
-# To get the raw_data of the transactions, there are two options:
-# 1. Use a Foundry script with the SafeTransactionBuilder module from the transaction-builder.
-#    The script will safe the raw calldata under transaction_builder/script/output.txt.
-#    Copy the raw data as a string, keep the 0x at the start (eg. RAW_DATA = "0x00000000001cb00036cbd53842c").
-# 2. Use the Transaction builder from Safe (https://app.safe.global/) to build the transaction.
-#    Do NOT sign via the Safe UI.
-#    Copy the Raw Data (under Transaction details) as a string, keep the 0x at the start (eg. RAW_DATA = "0x00000000001cb00036cbd53842c").
-
-raw_data="0x8d80ff0a0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000013200bf5bec5a2711719b5a2c344d17fbc276726ab1b100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044095ea7b30000000000000000000000000000000000000000000000000000000000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00bf5bec5a2711719b5a2c344d17fbc276726ab1b100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044095ea7b30000000000000000000000000000000000000000000000000000000000000002ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000000000000000"
-
-##################
 ### PARAMETERS ### 
 ##################
 # Parameters should not be changed for most transactions.
@@ -95,3 +78,40 @@ max_fee_per_gas = 0
 ## MAX PRIORITY FEE PER GAS ##
 
 max_priority_fee_per_gas = 1000000
+
+####################
+### TRANSACTIONS ###
+####################
+# User input will be different for each transaction.
+# Add one [[transactions]] table per transaction, in execution order.
+# * chain: The name of a chain from the chains list.
+# * safe: The name of a safe from the safes list.
+# * raw_data: The calldata to be executed by the safe.
+# * name: Optional, a human readable name shown in the transaction list.
+# * nonce: Optional. An integer pins the transaction to that nonce.
+#   "repeat" marks a recurring transaction: it always takes the next free nonce.
+#   Without nonce, the transaction is executed once; transactions on the same safe take consecutive nonces in file order.
+# * to, operation, gas, max_fee_per_gas, max_priority_fee_per_gas: Optional, override the chain or top-level value.
+#   A chain can override them as well, e.g. {name = "Base", chain_id = 8453, rpc_name = "RPC_BASE", gas = 500000}.
+#
+# To get the raw_data of the transactions, there are two options:
+# 1. Use a Foundry script with the SafeTransactionBuilder module from the transaction-builder.
+#    The script will safe the raw calldata under transaction_builder/script/output.txt.
+#    Copy the raw data as a string, keep the 0x at the start (eg. raw_data = "0x00000000001cb00036cbd53842c").
+# 2. Use the Transaction builder from Safe (https://app.safe.global/) to build the transaction.
+#    Do NOT sign via the Safe UI.
+#    Copy the Raw Data (under Transaction details) as a string, keep the 0x at the start (eg. raw_data = "0x00000000001cb00036cbd53842c").
+
+[[transactions]]
+name = "Example first"
+nonce = "repeat"
+chain = "Base Sepolia"
+safe = "Test Safe 1/2"
+raw_data = "0x8d80ff0a0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000013200bf5bec5a2711719b5a2c344d17fbc276726ab1b100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044095ea7b30000000000000000000000000000000000000000000000000000000000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00bf5bec5a2711719b5a2c344d17fbc276726ab1b100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044095ea7b30000000000000000000000000000000000000000000000000000000000000002ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000000000000000"
+
+[[transactions]]
+name = "Example second"
+nonce = "repeat"
+chain = "Base Sepolia"
+safe = "Test Safe 2/2"
+raw_data = "0x8d80ff0a0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000013200bf5bec5a2711719b5a2c344d17fbc276726ab1b100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044095ea7b30000000000000000000000000000000000000000000000000000000000000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00bf5bec5a2711719b5a2c344d17fbc276726ab1b100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000044095ea7b30000000000000000000000000000000000000000000000000000000000000002ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000000000000000"

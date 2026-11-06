@@ -11,7 +11,13 @@ from web3 import Web3
 
 
 def get_typed_data(
-    safe: any, to: str, raw_data: str, operation: int, constants: dict
+    safe_address: str,
+    chain_id: int,
+    to: str,
+    raw_data: str,
+    operation: int,
+    nonce: int,
+    constants: dict,
 ) -> dict:
     typed_data = {
         "types": {
@@ -43,11 +49,11 @@ def get_typed_data(
             "gasPrice": constants["GAS_PRICE"],
             "gasToken": constants["GAS_TOKEN"],
             "refundReceiver": constants["REFUND_RECEIVER"],
-            "nonce": safe.functions.nonce().call(),
+            "nonce": nonce,
         },
         "domain": {
-            "chainId": safe.functions.getChainId().call(),
-            "verifyingContract": safe.address,
+            "chainId": chain_id,
+            "verifyingContract": safe_address,
         },
     }
     return typed_data
@@ -86,6 +92,12 @@ def get_typed_data_hash(data: dict) -> bytes:
             ],
         )
     )
+
+
+def get_transaction_hash(
+    domain_hash: bytes, message_hash: bytes, sign_magic: str
+) -> str:
+    return keccak(Web3.to_bytes(hexstr=sign_magic) + domain_hash + message_hash).hex()
 
 
 def sign(

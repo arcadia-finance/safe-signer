@@ -1,46 +1,6 @@
 import inquirer
 
 
-def get_chain(chains: list) -> dict:
-    # Get safes from input file
-    choices = [f"{chain['name']} (Chain Id: {chain['chain_id']})" for chain in chains]
-    questions = [
-        inquirer.List(
-            "chains",
-            message="On which Chain do you want to execute a transaction?",
-            choices=choices,
-        ),
-    ]
-    answer = inquirer.prompt(questions)["chains"]
-
-    # Get chain information
-    chain_id = int(answer.split("(Chain Id: ")[1].split(")")[0])
-    for i in chains:
-        if chain_id == i["chain_id"]:
-            return i
-    raise ValueError(f"No chain found with chain_id {chain_id}")
-
-
-def get_safe(safes: list) -> dict:
-    # Get safes from input file
-    choices = [f"{safe['name']} ({safe['address']})" for safe in safes]
-    questions = [
-        inquirer.List(
-            "safes",
-            message="For which Safe do you want to execute a transaction?",
-            choices=choices,
-        ),
-    ]
-    answer = inquirer.prompt(questions)["safes"]
-
-    # Get safe information
-    safe_address = answer.split("(")[1].split(")")[0]
-    for i in safes:
-        if safe_address == i["address"]:
-            return i
-    raise ValueError(f"No safe found with address {safe_address}")
-
-
 def get_signer(signers: list) -> dict | bool:
     # Get signers from input file
     choices = [f"{signer['name']} ({signer['address']})" for signer in signers]
@@ -91,3 +51,56 @@ def get_relayer(relayers: list) -> dict | bool:
             if relayer_address == i["address"]:
                 return i
         raise ValueError(f"No relayer found with address {relayer_address}")
+
+
+def describe_transaction(entry: dict) -> str:
+    parts = [entry["chain"]["name"], entry["safe_config"]["name"]]
+    if entry["name"]:
+        parts.insert(0, entry["name"])
+    return f"#{entry['number']} " + " · ".join(parts)
+
+
+def get_transaction(entries: list, all_signatures: dict) -> dict | bool:
+    shown = [entry for entry in entries if entry["status"] != "executed"]
+    with_names = any(entry["name"] for entry in shown)
+    rows = []
+    for entry in shown:
+        row = [f"#{entry['number']}"]
+        if with_names:
+            row.append(entry["name"] or "")
+        row += [entry["chain"]["name"], entry["safe_config"]["name"]]
+        if entry["status"] == "unresolved":
+            row.append("unresolved")
+        else:
+            signed = len(all_signatures.get(entry["transaction_hash"], {}))
+            row += [
+                f"nonce {entry['nonce']}",
+                f"{signed}/{entry['threshold']} signed",
+                entry["status"],
+            ]
+        rows.append(row)
+    choices = _align(rows) + ["Exit"]
+
+    questions = [
+        inquirer.List(
+            "transactions",
+            message="Which transaction?",
+            choices=choices,
+        ),
+    ]
+    answer = inquirer.prompt(questions)
+    if answer is None or answer["transactions"] == "Exit":
+        return False
+    return shown[choices.index(answer["transactions"])]
+
+
+def _align(rows: list[list[str]]) -> list[str]:
+    widths = {}
+    for row in rows:
+        for i, cell in enumerate(row[:-1]):
+            widths[i] = max(widths.get(i, 0), len(cell))
+    lines = []
+    for row in rows:
+        cells = [cell.ljust(widths[i]) for i, cell in enumerate(row[:-1])] + row[-1:]
+        lines.append(f"{cells[0]} " + " · ".join(cells[1:]))
+    return lines
