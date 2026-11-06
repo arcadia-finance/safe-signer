@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from trezorlib.cli import get_passphrase
 from trezorlib.exceptions import Cancelled
 from trezorlib.transport import TransportException
@@ -9,6 +11,7 @@ from helpers import HW_MESSAGE_HASH as MESSAGE_HASH
 from helpers import HW_SIGNER_ADDRESS as SIGNER_ADDRESS
 from helpers import HW_UNSIGNED_TX as UNSIGNED_TX
 from src.wallets.trezor_1 import (
+    _get_client,
     get_path,
     sign_transaction,
     sign_typed_data_hash,
@@ -80,9 +83,9 @@ class TestSignTypedDataHash:
         assert call_kwargs.kwargs["domain_hash"] == DOMAIN_HASH
         assert call_kwargs.kwargs["message_hash"] == MESSAGE_HASH
 
-    @patch("src.wallets.trezor_1.get_default_client")
-    def test_transport_exception_returns_none(self, mock_get_default_client, capsys):
-        mock_get_default_client.side_effect = TransportException("no device")
+    @patch("src.wallets.trezor_1._find_transport")
+    def test_transport_exception_returns_none(self, mock_find_transport, capsys):
+        mock_find_transport.side_effect = TransportException("no device")
 
         result = sign_typed_data_hash(0, SIGNER_ADDRESS, DOMAIN_HASH, MESSAGE_HASH)
 
@@ -212,9 +215,9 @@ class TestSignTransaction:
 
         mock_client.__exit__.assert_called_once()
 
-    @patch("src.wallets.trezor_1.get_default_client")
-    def test_transport_exception_returns_none(self, mock_get_default_client, capsys):
-        mock_get_default_client.side_effect = TransportException("no device")
+    @patch("src.wallets.trezor_1._find_transport")
+    def test_transport_exception_returns_none(self, mock_find_transport, capsys):
+        mock_find_transport.side_effect = TransportException("no device")
 
         result = sign_transaction(0, SIGNER_ADDRESS, UNSIGNED_TX)
 
@@ -314,8 +317,9 @@ class TestDeviceCallsUseTheSession:
 
 class TestNonTransportTrezorErrors:
     @patch("src.wallets.trezor_1.get_default_client")
+    @patch("src.wallets.trezor_1._find_transport")
     def test_cancelled_while_connecting_returns_none(
-        self, mock_get_default_client, capsys
+        self, mock_find_transport, mock_get_default_client, capsys
     ):
         mock_get_default_client.side_effect = Cancelled()
 
@@ -326,3 +330,49 @@ class TestNonTransportTrezorErrors:
         assert (
             capsys.readouterr().out.count("Error communicating with Trezor device") == 2
         )
+
+
+class TestGetClient:
+    @patch("src.wallets.trezor_1.get_default_client")
+    @patch("src.wallets.trezor_1.BleTransport")
+    @patch("src.wallets.trezor_1.all_transports")
+    def test_skips_ble_and_stops_at_first_device(
+        self, mock_all_transports, mock_ble, mock_get_default_client, monkeypatch
+    ):
+        monkeypatch.delenv("TREZOR_PATH", raising=False)
+        hid, webusb, bridge = MagicMock(), MagicMock(), MagicMock()
+        hid.enumerate.return_value = []
+        webusb.enumerate.return_value = ["device"]
+        mock_all_transports.return_value = [hid, mock_ble, webusb, bridge]
+
+        _get_client()
+
+        mock_ble.enumerate.assert_not_called()
+        bridge.enumerate.assert_not_called()
+        assert mock_get_default_client.call_args.args[1] == "device"
+
+    @patch("src.wallets.trezor_1.get_default_client")
+    @patch("src.wallets.trezor_1.all_transports")
+    def test_no_device_raises(
+        self, mock_all_transports, mock_get_default_client, monkeypatch
+    ):
+        monkeypatch.delenv("TREZOR_PATH", raising=False)
+        hid = MagicMock()
+        hid.enumerate.return_value = []
+        mock_all_transports.return_value = [hid]
+
+        with pytest.raises(TransportException):
+            _get_client()
+        mock_get_default_client.assert_not_called()
+
+    @patch("src.wallets.trezor_1.get_default_client")
+    @patch("src.wallets.trezor_1.all_transports")
+    def test_trezor_path_overrides_discovery(
+        self, mock_all_transports, mock_get_default_client, monkeypatch
+    ):
+        monkeypatch.setenv("TREZOR_PATH", "udp:127.0.0.1:21324")
+
+        _get_client()
+
+        mock_all_transports.assert_not_called()
+        assert mock_get_default_client.call_args.args[1] == "udp:127.0.0.1:21324"

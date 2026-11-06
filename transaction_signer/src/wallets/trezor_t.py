@@ -1,3 +1,5 @@
+import os
+
 import rlp
 
 from eth_utils import keccak, to_bytes
@@ -8,6 +10,8 @@ from trezorlib.cli.ui import ClickUI
 from trezorlib.client import TrezorClient, get_default_client, get_default_session
 from trezorlib.tools import parse_path
 from trezorlib.exceptions import TrezorException
+from trezorlib.transport import Transport, TransportException, all_transports
+from trezorlib.transport.ble import BleTransport
 from web3.datastructures import AttributeDict
 
 
@@ -146,9 +150,19 @@ def _get_client() -> TrezorClient:
     ui = ClickUI()
     return get_default_client(
         "transaction-signer",
+        os.getenv("TREZOR_PATH") or _find_transport(),
         button_callback=ui.button_request,
         pin_callback=ui.get_pin,
     )
+
+
+def _find_transport() -> Transport:
+    for transport in all_transports():
+        if transport is BleTransport:
+            continue
+        for device in transport.enumerate():
+            return device
+    raise TransportException("No Trezor device found")
 
 
 def get_path(index: int) -> str:
