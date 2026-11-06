@@ -111,6 +111,9 @@ class TestBroadcast:
         entry["w3"].eth.send_raw_transaction.assert_called_once_with(
             safe_transaction.sign.return_value.raw_transaction
         )
+        entry["w3"].eth.wait_for_transaction_receipt.assert_called_once_with(
+            entry["w3"].eth.send_raw_transaction.return_value, timeout=180
+        )
 
     def test_confirmation_names_transaction(self, _relayer, _safe_transaction, prompt):
         entry = _entry()

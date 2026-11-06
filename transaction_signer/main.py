@@ -153,9 +153,10 @@ def broadcast(entry: dict, ctx: dict) -> bool:
         print(f"The safe's nonce moved to {live_nonce}; refresh and try again.")
         return False
 
-    entry["w3"].eth.send_raw_transaction(signed_tx.raw_transaction)
-    tx_hash = f"0x{keccak(signed_tx.raw_transaction).hex()}"
-    print(f"Transaction sent: {tx_hash}")
+    tx_hash = entry["w3"].eth.send_raw_transaction(signed_tx.raw_transaction)
+    print(f"Transaction sent: 0x{keccak(signed_tx.raw_transaction).hex()}")
+    receipt = entry["w3"].eth.wait_for_transaction_receipt(tx_hash, timeout=180)
+    print(f"Mined in block {receipt['blockNumber']} with status {receipt['status']}.")
     return True
 
 

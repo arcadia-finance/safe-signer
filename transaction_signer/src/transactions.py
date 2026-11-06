@@ -157,11 +157,17 @@ def scan_history(
     history = dict(known)
     for offset, log in enumerate(logs):
         history[first_nonce + offset] = (
-            bytes(log["data"])[:32].hex(),
+            _tx_hash(log),
             bytes(log["topics"][0]) == EXECUTION_TOPICS[0],
             log["blockNumber"],
         )
     return {"scanned_to": block, "nonce": live_nonce, "history": history}
+
+
+def _tx_hash(log) -> str:
+    if len(log["topics"]) > 1:
+        return bytes(log["topics"][1]).hex()
+    return bytes(log["data"])[:32].hex()
 
 
 def _collect(

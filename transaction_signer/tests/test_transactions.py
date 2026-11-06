@@ -255,6 +255,19 @@ def _log(block, tx_hash, success=True, log_index=0, address=SAFE_ADDRESS):
     }
 
 
+def _log_v141(block, tx_hash, success=True, log_index=0):
+    return {
+        "address": SAFE_ADDRESS,
+        "topics": [
+            HexBytes(SUCCESS if success else FAILURE),
+            HexBytes(bytes.fromhex(tx_hash)),
+        ],
+        "blockNumber": block,
+        "logIndex": log_index,
+        "data": HexBytes(bytes(32)),
+    }
+
+
 class FakeEth:
     def __init__(self, logs, reject=None):
         self.logs = logs
@@ -324,6 +337,19 @@ class TestScanHistory:
         for call in w3.eth.calls:
             assert call["address"] == SAFE_ADDRESS
             assert [bytes(t) for t in call["topics"][0]] == [SUCCESS, FAILURE]
+
+    def test_safe_v141_indexed_tx_hash(self, _sleep):
+        w3 = _w3(
+            [_log(10, HASH_1), _log_v141(20, HASH_2), _log_v141(30, HASH_3, False)]
+        )
+
+        result = scan_history(w3, SAFE_ADDRESS, 100, 3, None, {})
+
+        assert result["history"] == {
+            0: (HASH_1, True, 10),
+            1: (HASH_2, True, 20),
+            2: (HASH_3, False, 30),
+        }
 
     def test_failure_event_takes_nonce(self, _sleep):
         w3 = _w3([_log(10, HASH_1), _log(20, HASH_2, success=False)])
