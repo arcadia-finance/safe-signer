@@ -1,1 +1,2 @@
 transaction_signer/out/signatures.txt merge=union
+transaction_signer/out/history.jsonl merge=union

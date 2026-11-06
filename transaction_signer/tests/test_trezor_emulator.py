@@ -76,7 +76,15 @@ def constants():
 
 @pytest.fixture
 def typed_data(safe, constants):
-    return get_typed_data(safe, golden.MULTISEND_ADDRESS, golden.RAW_DATA, 1, constants)
+    return get_typed_data(
+        golden.SAFE_ADDRESS,
+        golden.CHAIN_ID,
+        golden.MULTISEND_ADDRESS,
+        golden.RAW_DATA,
+        1,
+        golden.SAFE_NONCE,
+        constants,
+    )
 
 
 @pytest.fixture

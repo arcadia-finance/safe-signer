@@ -12,7 +12,11 @@ from web3 import Web3
 from web3.providers import BaseProvider
 
 from src import safe_transaction
-from src.eip712_typed_data import get_typed_data, get_typed_data_hash
+from src.eip712_typed_data import (
+    get_transaction_hash,
+    get_typed_data,
+    get_typed_data_hash,
+)
 from src.utils import signatures
 from src.wallets import ledger_nano, trezor_1, trezor_t
 from src.wallets.hot_wallet import sign_typed_data
@@ -139,8 +143,10 @@ def constants():
 
 
 @pytest.fixture
-def typed_data(safe, constants):
-    return get_typed_data(safe, MULTISEND_ADDRESS, RAW_DATA, 1, constants)
+def typed_data(constants):
+    return get_typed_data(
+        SAFE_ADDRESS, CHAIN_ID, MULTISEND_ADDRESS, RAW_DATA, 1, SAFE_NONCE, constants
+    )
 
 
 @pytest.fixture
@@ -175,10 +181,9 @@ def signed_relay_tx(w3, safe, constants, typed_data, monkeypatch):
 def test_transaction_hash(safe, constants, typed_data):
     domain_hash = safe.functions.domainSeparator().call()
     message_hash = get_typed_data_hash(typed_data)
-    msg_to_sign = (
-        Web3.to_bytes(hexstr=constants["SIGN_MAGIC"]) + domain_hash + message_hash
+    transaction_hash = get_transaction_hash(
+        domain_hash, message_hash, constants["SIGN_MAGIC"]
     )
-    transaction_hash = keccak(msg_to_sign).hex()
 
     assert transaction_hash == EXPECTED_TRANSACTION_HASH
     assert encode_typed_data(full_message=typed_data).body == message_hash
