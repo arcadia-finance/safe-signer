@@ -1,0 +1,44 @@
+chains = [
+    {name = "Base", chain_id = 8453, rpc_name = "RPC_BASE"},
+    {name = "Optimism", chain_id = 10, rpc_name = "RPC_OPTIMISM", max_priority_fee_per_gas = 0},
+]
+
+safes = [
+    {name = "Treasury", address = "0x1111111111111111111111111111111111111111"},
+    {name = "Owner", address = "0x2222222222222222222222222222222222222222"},
+]
+
+signers = [
+    {name = "Signer", address = "0x3333333333333333333333333333333333333333", wallet = "T", index = 0},
+]
+
+relayers = [
+    {name = "Relayer", address = "0x4444444444444444444444444444444444444444", wallet = "HOT", key_name = "KEY_RELAYER"},
+]
+
+operation = 1
+to = "0xA1dabEF33b3B82c7814B6D82A79e50F4AC44102B"
+gas = 0
+max_fee_per_gas = 0
+max_priority_fee_per_gas = 1000000
+
+[[transactions]]
+name = "Rewards"
+nonce = "repeat"
+chain = "Base"
+safe = "Treasury"
+raw_data = "0x1234"
+
+[[transactions]]
+chain = "Optimism"
+safe = "Owner"
+raw_data = "0xabcd"
+gas = 500000
+
+[[transactions]]
+nonce = 7
+chain = "Base"
+safe = "Owner"
+raw_data = "0x"
+operation = 0
+to = "0x5555555555555555555555555555555555555555"
